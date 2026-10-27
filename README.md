@@ -1,9 +1,8 @@
 ﻿# NCHAT
 
 
-This project has been entirely vibe coded, i'm not an engineer of any kind, i was bored
-
 A local-first, node-based prompt graph for [LM Studio](https://lmstudio.ai/). Create prompt nodes, stream responses into new sibling nodes, connect answers into follow-up prompts, and explore the resulting graph instead of managing a conventional chat transcript.
+This project has been entirely vibe coded, i'm not an engineer of any kind, i was bored
 
 ## Features
 
