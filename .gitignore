@@ -1,0 +1,56 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+
+# TypeScript build info from `tsc -b`, and caches left by Vite/Vitest.
+# They are machine state, rebuilt in a second by `npm run typecheck`.
+*.tsbuildinfo
+.vite
+.cache
+
+# Test reports.
+test-results
+playwright-report
+
+# Secrets: only the example, which holds no real value, may be published.
+#
+# `.env` e `.env.*` con il negazione per `.env.example`: senza la negazione, il
+# pattern `*.local` non basterebbe, e un file `.env` con una chiave finirebbe nel
+# primo `git add .` senza che nessuno lo noti.
+.env
+.env.*
+!.env.example
+
+# Shortcuts created by the local tooling.
+#
+# `NCHAT.lnk` viene creato da `tools\install-shortcut.ps1` e porta dentro di se
+# il **percorso assoluto di sviluppo**: la WorkingDirectory e il percorso di
+# `run-tray.ps1` sono quelli della macchina in cui e stato creato. Non e un
+# segreto, ma non ha senso in un repository, e per chi clona sarebbe un
+# collegamento rotto, che punta a una cartella che non esiste.
+*.lnk
+
+# Local scratch notes, not part of the project.
+idk
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

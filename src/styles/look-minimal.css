@@ -1,0 +1,157 @@
+/*
+ * Aspetto "Minimal" — quasi niente.
+ *
+ * Qui la regola e' una sola e non si negozia: **un colore che non significa
+ * niente sparisce**. Il verde di «riuscito» resta perche' vuol dire riuscito, il
+ * rosso di un errore resta perche' vuol dire errore, e tutto il resto — bordi,
+ * sfondi, ombre, la differenza fra una superficie e l'altra — sparisce.
+ *
+ * Il risultato e' un'interfaccia in cui la sola cosa che attira l'occhio e' il
+ * testo, e la sola cosa colorata e' cio' che richiede una decisione. E' cio' che
+ * succede scrivendo: la carta e' bianca, l'inchiostro e' nero, e il rosso serve
+ * per una correzione.
+ *
+ * Il pericolo di questo aspetto e' noto, ed e' per questo che i bordi non sono
+ * spariti **dovunque**: sono spariti dai pannelli, e sono rimasti sulle finestre
+ * e sui menu. Una finestra senza bordo non si chiude, perche' non si vede dove
+ * finisce — e un bottone che non si vede e' un bottone che l'utente non preme.
+ *
+ * Solo token e forma, come gli altri. Vede `types/settings.ts`.
+ */
+
+:root[data-appearance='minimal'] {
+  /* Quasi nessun raggio: e' la forma coerente con «niente bordo, niente ombra».
+     Un angolo generoso su un riquadro invisibile e' solo un arrotondamento di
+     niente. */
+  --r-panel: 4px;
+  --r-field: 3px;
+  --r-pill: 3px;
+}
+
+/* --- Scuro: nero vero, grigi quasi tutti uguali. --- */
+:root[data-appearance='minimal'][data-theme='dark'] {
+  --bg: #000000;
+  /* Le tre superfici sono **la stessa**: e' il punto. In un aspetto minimale la
+     differenza fra --surface e --surface-2 e' rumore, e rumore qui e' cio' che
+     rende un'interfaccia piu' rumorosa di quanto serva. */
+  --surface: #0c0c0c;
+  --surface-2: #0c0c0c;
+  --surface-3: #141414;
+  --border: #1e1e1e;
+  --border-strong: #3a3a3a;
+  --text: #ededed;
+  --text-dim: #a0a0a0;
+  --text-faint: #6e6e6e;
+  /* L'accento e' **grigio**, non colorato. Un colore d'accento su tutta la
+     superficie divisoria significa che ogni divisione sembra selezionata. Il
+     colore arriva solo dove ha un significato: sotto, in `--ok`, `--warn`, `--err`. */
+  --accent: #b4b4b4;
+  --accent-strong: #d4d4d4;
+  --accent-soft: rgb(255 255 255 / 7%);
+  --accent-2: #8a8a8a;
+  --ok: #46a758;
+  --warn: #c9992a;
+  --err: #e5534b;
+  --stream: #4a9ec4;
+  --edge-run: #2e2e2e;
+  --edge-context: #6e6e6e;
+  --edge-system: #4a4a4a;
+  --shadow: none;
+  --shadow-soft: none;
+  --overlay: rgb(0 0 0 / 78%);
+  --canvas-dot: rgb(255 255 255 / 4%);
+}
+
+/* --- Chiaro: bianco, e quasi tutto grigio. --- */
+:root[data-appearance='minimal'][data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f7f7f7;
+  --border: #e6e6e6;
+  --border-strong: #bdbdbd;
+  --text: #1a1a1a;
+  --text-dim: #5e5e5e;
+  --text-faint: #8c8c8c;
+  --accent: #5e5e5e;
+  --accent-strong: #3d3d3d;
+  --accent-soft: rgb(0 0 0 / 5%);
+  --accent-2: #767676;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --err: #cf222e;
+  --stream: #0969da;
+  --edge-run: #d0d0d0;
+  --edge-context: #8c8c8c;
+  --edge-system: #adadad;
+  --shadow: none;
+  --shadow-soft: none;
+  --overlay: rgb(0 0 0 / 34%);
+  --canvas-dot: rgb(0 0 0 / 5%);
+}
+
+/*
+ * I pannelli: senza bordo e senza ombra.
+ *
+ * Due regole, e la seconda e' quella che tiene insieme il resto. Un pannello senza
+ * bordo e senza ombra su uno sfondo dello stesso colore sparisce, e se sparisce non
+ * si capisce dove finisce: il campo di testo dentro non ha un inizio. La seconda
+ * mette un **filo** sotto i campi che si scrivono — non un riquadro, un filo: dice
+ * «da qui comincia la riga» senza alzare un muro intorno a un'area che per il resto
+ * e' vuota.
+ */
+:root[data-appearance='minimal'] .node-shell,
+:root[data-appearance='minimal'] .topbar,
+:root[data-appearance='minimal'] .statusbar,
+:root[data-appearance='minimal'] .canvas-toolbar,
+:root[data-appearance='minimal'] .react-flow__controls,
+:root[data-appearance='minimal'] .react-flow__minimap {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance='minimal'] .node-header {
+  border-bottom: 1px solid var(--border);
+}
+
+:root[data-appearance='minimal'] .node-textarea,
+:root[data-appearance='minimal'] .response-body,
+:root[data-appearance='minimal'] .file-preview {
+  border-color: transparent;
+  border-bottom-color: var(--border);
+  border-radius: 0;
+}
+
+/*
+ * Queste **restano** col bordo. Non per disattenzione: e' che sono le uniche cose
+ * che, se si confondono con lo sfondo, rendono qualcosa irraggiungibile.
+ *
+ * - la finestra: senza bordo non si vede dove finisce, quindi non si vede la X;
+ * - il menu: senza bordo la sua forma non si distingue dalla tela e sembra che il
+ *   puntatore non lo colpisca — che e' esattamente il difetto che un aspetto
+ *   semplice deve evitare di sembrare avere;
+ * - la maniglia: un quadrato senza bordo su un pannello senza bordo e' invisibile,
+ *   e senza maniglia non si trascina niente.
+ */
+:root[data-appearance='minimal'] .dialog,
+:root[data-appearance='minimal'] .context-menu,
+:root[data-appearance='minimal'] .node-palette,
+:root[data-appearance='minimal'] .inspector,
+:root[data-appearance='minimal'] .queue-panel {
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 10%);
+  background: var(--surface);
+}
+
+:root[data-appearance='minimal'] .dialog {
+  box-shadow: 0 8px 40px rgb(0 0 0 / 18%);
+}
+
+:root[data-appearance='minimal'] .react-flow__handle {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+:root[data-appearance='minimal'] .node-shell.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}

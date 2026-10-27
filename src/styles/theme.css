@@ -1,0 +1,3503 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: var(--fs-14);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+[tabindex] {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+/*
+ * Il testo selezionato.
+ *
+ * Era `var(--accent-soft)`, che e' l'accento al **14%**: si vede appena, e quindi una
+ * parola selezionata sembrava non selezionata. Non e' una questione estetica — e' che
+ * non si capiva piu' cosa si fosse copiato, e la selezione serve proprio a quello.
+ *
+ * Qui l'accento e' al 55%: abbastanza forte da vedersi su un fondo scuro e su uno
+ * chiaro, non cosi forte da coprire il testo. Il colore resta esplicitamente quello
+ * del tema, perche' con uno sfondo acceso un testo scuro diventa illeggibile.
+ */
+::selection {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--text);
+}
+
+/*
+ * La parola che la ricerca ha trovato, mentre e' evidenziata.
+ *
+ * Piu' forte della selezione normale, e con un bordo, perche' la richiesta e' che si
+ * veda **a prima vista** e non che si noti se lo si sta guardando. Il bordo serve a
+ * distinguere l'evidenziatura della ricerca da una selezione qualsiasi: durante la
+ * ricerca l'utente seleziona anche altro, e non deve confondere le due cose.
+ *
+ * La regola vale sul nodo e su tutto quello che contiene, perche' il testo da
+ * evidenziare puo' stare sia in una `textarea` (prompt, nota) sia nel corpo di una
+ * risposta o di un file.
+ */
+[data-search-hit]::selection,
+[data-search-hit] ::selection {
+  background: color-mix(in srgb, var(--accent) 78%, transparent);
+  color: var(--text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-strong) 90%, transparent);
+}
+
+/*
+ * Il testo dentro un nodo si può selezionare e copiare.
+ *
+ * React Flow mette `user-select: none` su tutti i nodi, e la ragione e' sensata: il
+ * trascinamento non deve selezionare il testo mentre si sposta un nodo. Il problema e'
+ * che cosi' **niente** dentro un nodo era selezionabile, e cioe' la risposta del modello
+ * non si poteva copiare. Il difetto e' di quelli invisibili finche' non si prova, e
+ * quando si prova la cosa da fare e' ovvia e non si puo' fare — un testo che si vede ma
+ * non si copia e' una risposta che si puo' solo rileggere a occhio.
+ *
+ * Il corpo (`node-body`) e' gia' `nodrag`: un trascinamento che comincia li' non sposta
+ * il nodo, quindi non c'e' **nessun** conflitto con il gesto di spostare. Si puo'
+ * liberare la selezione senza dare un prezzo.
+ *
+ * La barra del titolo resta `user-select: none` e resta la superficie da cui si trascina
+ * il nodo: e' il posto giusto, perche' e' l'unico che si muove sempre allo stesso modo e
+ * non contiene testo da copiare. Copiare il titolo non serve, e trascinare da li' deve
+ * restare infallibile.
+ */
+.node-body {
+  user-select: text;
+}
+
+/*
+ * Il piè di pagina no: contiene solo comandi e un conteggio, e selezionare il testo
+ * attorno a un bottone durante un trascinamento e' solo un modo di premere il bottone
+ * sbagliato.
+ */
+.node-footer {
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--r-pill, 999px);
+  background: var(--border-strong);
+  background-clip: padding-box;
+}
+
+.app-shell {
+  display: grid;
+  /*
+   * Le due righe fisse, una alta e una bassa, sono qui dentro e non sui loro elementi.
+   *
+   * In una griglia e' la riga a decidere l'altezza, non il contenuto: un `min-height`
+   * sulla barra puo' solo farla crescere, mai rimpicciolirla. Percio' i due numeri
+   * sono qui, moltiplicati per il fattore di dimensione, e i `min-height` sugli
+   * elementi servono solo a dare loro un aspetto coerente quando la griglia non e' quella
+   * che li contiene.
+   */
+  grid-template-rows:
+    var(--chrome-top) minmax(0, 1fr) var(--chrome-bottom);
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+.topbar {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /*
+   * L'altezza minima, non fissa: senza, la barra si dimensiona sul contenuto e il
+   * fattore di dimensione la allunga in modo disuguale a seconda di cosa c'e' dentro
+   * in quel momento — con un modello selezionato e' piu' alta che con la lista vuota,
+   * e passa da una fila a due quando il testo cresce. Con il minimo, la barra ha
+   * sempre la sua altezza e i suoi controlli restano sulla stessa riga.
+   */
+  min-height: var(--chrome-top);
+  min-width: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.brand-mark {
+  display: grid;
+  width: var(--control-min);
+  height: var(--control-min);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  border-radius: var(--r-field, 9px);
+  background: linear-gradient(145deg, var(--accent-soft), transparent);
+  color: var(--accent-strong);
+  box-shadow: inset 0 1px rgb(255 255 255 / 6%);
+}
+
+.workspace-name {
+  width: min(240px, 22vw);
+  min-width: 90px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--r-field, 7px);
+  background: transparent;
+  color: var(--text);
+  font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.workspace-name:hover,
+.workspace-name:focus {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.connection-pill,
+.status-pill,
+.running-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: var(--control-min);
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.connection-pill:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.connection-pill.is-connected {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+  color: var(--ok);
+}
+
+.connection-pill.is-offline {
+  border-color: color-mix(in srgb, var(--err) 35%, var(--border));
+  color: var(--err);
+}
+
+.connection-pill.is-no-model {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--border));
+  color: var(--warn);
+}
+
+.connection-pill.is-connecting {
+  color: var(--accent-strong);
+}
+
+.model-select {
+  max-width: calc(210px * var(--ui-scale));
+  height: var(--control-min);
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: var(--surface-2);
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+
+.app-main {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.react-flow {
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 34%),
+    var(--bg);
+}
+
+.react-flow__pane {
+  cursor: default;
+}
+
+.react-flow__node {
+  border-radius: var(--r-panel, 14px);
+}
+
+.react-flow__node.selected {
+  z-index: 5 !important;
+}
+
+.react-flow__edge-path {
+  transition: stroke 140ms ease, stroke-width 140ms ease, opacity 140ms ease;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--edge-context) 45%, transparent));
+}
+
+.react-flow__edge-text {
+  fill: var(--text-faint);
+  font-size: var(--fs-10);
+}
+
+.react-flow__connectionline path {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 10px);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom-color: var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  fill: currentColor;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 10px);
+  /* Senza `!important`: la regola di React Flow non lo usa, e questo foglio viene
+     caricato dopo, quindi basta la specificita. Con l'important in mezzo, un
+     aspetto alternativo avrebbe dovuto duplicarlo per poter passare. */
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.react-flow__attribution {
+  border-radius: var(--r-field, 5px) 0 0;
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+}
+
+.react-flow__attribution a {
+  color: inherit;
+}
+
+.canvas-toolbar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 12px);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+.canvas-toolbar .toolbar-divider {
+  width: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+
+.zoom-readout {
+  display: grid;
+  min-width: 48px;
+  place-items: center;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+}
+
+.node-shell {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 14px);
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+/* Only a node with a persisted size must stretch to fill it. */
+.node-shell.has-explicit-size {
+  height: 100%;
+}
+
+.node-shell:hover {
+  border-color: var(--border-strong);
+}
+
+.node-shell.is-selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    var(--shadow-soft);
+}
+
+.node-shell.status-streaming {
+  border-color: color-mix(in srgb, var(--stream) 72%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--stream) 28%, transparent),
+    0 0 24px color-mix(in srgb, var(--stream) 12%, transparent);
+  animation: stream-border 1.8s ease-in-out infinite;
+}
+
+.node-shell.has-error {
+  border-color: color-mix(in srgb, var(--err) 60%, var(--border));
+}
+
+.node-shell.note-amber { --note-color: #f4b740; }
+.node-shell.note-sky { --note-color: #38bdf8; }
+.node-shell.note-rose { --note-color: #fb7185; }
+
+@keyframes stream-border {
+  50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--stream) 15%, transparent), 0 0 30px color-mix(in srgb, var(--stream) 20%, transparent); }
+}
+
+.node-header {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px 7px 11px;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+}
+
+.node-header:active {
+  cursor: grabbing;
+}
+
+.node-type-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--r-field, 6px);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.node-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-subtitle {
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  white-space: nowrap;
+}
+
+.node-header-actions,
+.node-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.node-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.node-footer {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+}
+
+.node-textarea {
+  display: block;
+  width: 100%;
+  min-height: 74px;
+  max-height: 320px;
+  resize: none;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  padding: 9px 10px;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.node-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.node-textarea:hover {
+  border-color: var(--border-strong);
+}
+
+.node-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.node-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.param-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.param-chip,
+.info-chip,
+.token-chip {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 6px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: var(--fs-9);
+  white-space: nowrap;
+}
+
+.param-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/*
+ * Collapse, stile Blender: il nodo resta header + maniglia, il resto sparisce.
+ * body e footer restano montati e sono nascosti, cosi gli handle (figli del
+ * nodo) continuano a esistere e un nodo collassato si puo ancora collegare.
+ */
+.node-collapse {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-field, 4px);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.node-collapse:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/*
+ * Un nodo collassato nasconde il contenuto, **non** le maniglie.
+ *
+ * Il corpo resta montato di proposito — il commento in `NodeShell` lo spiega: toglierlo
+ * porterebbe via le maniglie, che sono figli del nodo, e un nodo collassato a cui non
+ * si puo' piu' collegare niente e inutile. Ma `display: none` su `.node-body` nasconde
+ * esattamente quelle maniglie, perche' sono dentro. Il risultato era un nodo collassato
+ * che si comportava come prima — collegare funzionava, la logica non era rotta — ma
+ * senza punti agganciabili visibili: il peggiore dei due, perche' sembrava un bug di
+ * connessione e non di aspetto.
+ *
+ * Quindi il corpo si comprime invece di sparire: `visibility: hidden` lo toglie dalla
+ * vista ma **non dal layout**, quindi il nodo collassato occupa solo l'altezza
+ * dell'header, che e' tutto quello che si voleva dal collasso.
+ *
+ * `visibility: hidden` e non `opacity: 0`: l'opacita' lascia il contenuto cliccabile
+ * sopra l'header, e un nodo collassato che intercetta i clic e non li lascia passare
+ * coprirebbe gli altri. `visibility` toglie anche il puntatore.
+ */
+.node-shell.is-collapsed .node-body,
+.node-shell.is-collapsed .node-footer {
+  visibility: hidden;
+  flex: 0 0 auto;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.node-shell.is-collapsed .node-resize-line,
+.node-shell.is-collapsed .node-resize-handle {
+  display: none;
+}
+
+/*
+ * Le maniglie di un nodo collassato appartengono all'header, non al corpo.
+ *
+ * Sono figli di `.node-body`, che ora e' alto zero. Le maniglie di React Flow sono in
+ * posizione assoluta con `top: 50%` o `bottom: 0`, quindi su un contenitore alto zero
+ * si accavallerebbero tutte sul bordo superiore del nodo: si vedrebbero, ma nel posto
+ * sbagliato — che e' lo stesso difetto di prima, spostato di poco.
+ *
+ * Qui diventano figlie del guscio del nodo, che e' l'elemento alto quanto l'header, e
+ * prendono posizione rispetto a quello. Il nodo collassato e' alto quanto l'header e i
+ * suoi manigli restano ai lati, dove erano prima del collasso: le linee esistenti non
+ * si spostano e il puntatore le trova esattamente dove le ha sempre trovate.
+ *
+ * `position: static` sul corpo serve perche' un contenitore non posizionato diventi il
+ * riferimento delle maniglie. Senza, `top: 50%` continuerebbe a valersi sul corpo.
+ */
+.node-shell.is-collapsed .node-body {
+  position: static;
+}
+
+/*
+ * Le maniglie devono **tornare visibili**: `visibility` si eredita, quindi un corpo
+ * nascosto le nasconde insieme a lui. Ed e' esattamente il difetto da correggere, non
+ * una conseguenza accettata: senza questa riga il collasso funziona e le maniglie non
+ * si vedono, che e' il sintomo segnalato.
+ */
+.node-shell.is-collapsed .react-flow__handle {
+  position: absolute;
+  visibility: visible;
+  pointer-events: all;
+}
+
+/* Un nodo collassato si stringe all'altezza dell'header: e il punto di
+   risparmiare spazio sul canvas. La LARGHEZZA invece viene conservata, perche
+   un nodo ridimensionato a mano deve tornare uguale quando lo si riapre. */
+.node-shell.is-collapsed {
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.node-collapsed-preview {
+  margin: 0;
+  padding: 5px 9px 7px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.token-chip.warning {
+  border-color: color-mix(in srgb, var(--warn) 42%, var(--border));
+  color: var(--warn);
+}
+
+/* Thinking toggle: a chip that can be switched on and off per prompt. */
+.toggle-chip {
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-9);
+  line-height: 1;
+}
+
+.toggle-chip.is-on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text);
+}
+
+.toggle-chip.is-off {
+  border-color: color-mix(in srgb, var(--text-faint) 55%, var(--border));
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.toggle-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Legacy grouping node, only present in documents saved before Output groups. */
+.legacy-set-node {
+  opacity: 0.85;
+  border-style: dashed;
+}
+
+.legacy-set-text {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-10);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.run-button {
+  margin-left: auto;
+}
+
+.inline-node-error {
+  margin-top: 7px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--err) 32%, var(--border));
+  border-radius: var(--r-field, 7px);
+  background: color-mix(in srgb, var(--err) 8%, transparent);
+  color: var(--err);
+  font-size: var(--fs-10);
+  line-height: 1.4;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.status-dot.idle { background: var(--text-faint); }
+.status-dot.done { background: var(--ok); }
+.status-dot.queued { background: var(--text-faint); animation: pulse 1.4s ease-in-out infinite; }
+.status-dot.streaming { background: var(--stream); animation: pulse 1s ease-in-out infinite; }
+.status-dot.error { background: var(--err); }
+.status-dot.aborted,
+.status-dot.interrupted { background: var(--warn); }
+
+@keyframes pulse {
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.react-flow__handle {
+  width: 10px !important;
+  height: 10px !important;
+  border: 2px solid var(--surface) !important;
+  background: var(--accent) !important;
+  opacity: 0.45;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.react-flow__handle:hover,
+.node-shell:hover .react-flow__handle,
+.react-flow__handle.connectionindicator:hover {
+  opacity: 1;
+  transform: scale(1.22);
+}
+
+.react-flow__handle-left { left: -6px !important; }
+.react-flow__handle-right { right: -6px !important; }
+
+.react-flow__handle.handle-system { background: var(--edge-system) !important; }
+.react-flow__handle.handle-run { background: var(--edge-run) !important; }
+
+/*
+ * Aree cliccabili piu larghe, aspetto identico.
+ *
+ * React Flow dimensiona le linee di resize a 1px e i corner a 5px: sono
+ * visualmente eleganti e praticamente impossibili da afferrare. Qui si
+ * ingrandisce solo la superficie che riceve il puntatore, con un pseudo-elemento
+ * trasparente: il bordo visibile resta di 1px esattamente dove era, ma il
+ * bersaglio diventa una fascia di 11px. Nulla di cio che si vede cambia.
+ */
+.react-flow__handle::before,
+.react-flow__resize-control.handle::before,
+.react-flow__resize-control.line::before {
+  position: absolute;
+  content: "";
+}
+
+/* 10px visible -> 30px grabbable */
+.react-flow__handle::before {
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  translate: -50% -50%;
+}
+
+/* 7px visible -> 22px grabbable */
+.react-flow__resize-control.handle::before {
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  translate: -50% -50%;
+}
+
+/* 1px visible -> 11px grabbable, centrata sul bordo del nodo */
+.react-flow__resize-control.line.left::before,
+.react-flow__resize-control.line.right::before {
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  right: -5px;
+}
+
+.react-flow__resize-control.line.top::before,
+.react-flow__resize-control.line.bottom::before {
+  left: 0;
+  right: 0;
+  top: -5px;
+  bottom: -5px;
+}
+
+.response-body {
+  min-height: 74px;
+  /* Tetto di leggibilita: oltre, il corpo scorre e il nodo resta un nodo.
+     Il valore vive in logic/autoFit.ts, questa e la sua controparte CSS. */
+  max-height: 560px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px 2px;
+  color: var(--text);
+  font-size: var(--fs-12);
+  line-height: 1.58;
+}
+
+/*
+ * La larghezza di una riga leggibile, e solo per i nodi non ridimensionati.
+ *
+ * Una risposta cresce in verticale, non in orizzontale: e l'unica direzione in cui
+ * un paragrafo si legge, e perche e quella che chiede l'utente — «non voglio vederlo
+ * troppo lungo in una direzione, preferisco che sia piu lungo in verticale».
+ *
+ * Il tetto e sui nodi che l'utente non ha toccato: chi ridimensiona un nodo a mano
+ * ha gia deciso quanto lo vuole largo, e limitarlo nasconderebbe il testo che ha
+ * chiesto di vedere. Senza `:not()`, questa regola renderebbe ogni nodo ridimensionato
+ * a mano piu stretto di quanto l'utente l'ha impostato — cioe romperebbe il
+ * ridimensionamento, che e una funzionalita, non una preferenza.
+ */
+.response-node:not(.has-explicit-size) .response-body {
+  max-width: 560px;
+}
+
+/* A resized node owns its layout: the body fills it and never scrolls. */
+.has-explicit-size .response-body {
+  max-height: none;
+  max-width: none;
+  flex: 1;
+}
+
+.response-body.is-streaming::after {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 3px;
+  translate: 0 2px;
+  background: var(--stream);
+  content: "";
+  animation: caret 0.85s steps(1) infinite;
+}
+
+@keyframes caret { 50% { opacity: 0; } }
+
+.response-placeholder {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: var(--fs-11);
+}
+
+.response-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  padding: 5px 7px;
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--border));
+  border-radius: var(--r-field, 7px);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  color: var(--warn);
+  font-size: var(--fs-10);
+}
+
+.response-stats {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.response-stats span {
+  white-space: nowrap;
+}
+
+.markdown {
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { margin: 0.55em 0; }
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 0.8em 0 0.35em;
+  line-height: 1.25;
+}
+.markdown h1 { font-size: 1.28em; }
+.markdown h2 { font-size: 1.15em; }
+.markdown h3 { font-size: 1.05em; }
+.markdown ul,
+.markdown ol { margin: 0.5em 0; padding-left: 1.4em; }
+.markdown li { margin: 0.2em 0; }
+.markdown blockquote {
+  margin: 0.7em 0;
+  padding: 0.25em 0 0.25em 0.8em;
+  border-left: 2px solid var(--accent);
+  color: var(--text-dim);
+}
+.markdown a { color: var(--accent-strong); text-underline-offset: 2px; }
+.markdown hr { border: 0; border-top: 1px solid var(--border); }
+.markdown table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+.markdown th,
+.markdown td { padding: 5px 7px; border: 1px solid var(--border); text-align: left; }
+.markdown th { background: var(--surface-2); }
+.markdown code:not(pre code) {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 4px);
+  background: var(--surface-2);
+  color: color-mix(in srgb, var(--accent-strong) 70%, var(--text));
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+.markdown img { display: none !important; }
+
+.code-block {
+  position: relative;
+  margin: 0.7em 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: #0b0f17;
+}
+.code-block pre {
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  color: #d7deeb;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+.code-copy-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  border: 1px solid #303849;
+  border-radius: var(--r-field, 5px);
+  padding: 3px 6px;
+  background: #171d29;
+  color: #aeb8c9;
+  font-size: var(--fs-9);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.code-block:hover .code-copy-button,
+.code-copy-button:focus-visible { opacity: 1; }
+
+.note-node .node-body {
+  background: color-mix(in srgb, var(--note-color, var(--accent)) 7%, transparent);
+}
+
+.note-node .node-textarea {
+  min-height: 100px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+/*
+ * Il nodo Knowledge: una scelta, non un testo.
+ *
+ * Non c'e' una casella da scrivere, quindi il corpo non ha lo sfondo dei nodi di testo: lo
+ * sfondo farebbe pensare che si possa scriverci dentro, e la prima cosa che l'utente
+ * proverebbe e' digitare — che qui non ha nessun effetto e sembrerebbe un difetto.
+ *
+ * L'elenco delle note ha un **tetto** e scorre. Il tetto e' la parte che conta: un centro con
+ * venti note, senza tetto, farebbe crescere il nodo fino a coprire mezza tela, e il resto del
+ * grafico sparirebbe sotto — e il nodo che serve a ricordare qualcosa finirebbe per
+ * nascondere il lavoro che lo circonda.
+ */
+.knowledge-node .node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knowledge-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px;
+}
+
+.knowledge-node-body .form-field {
+  margin: 0;
+}
+
+.knowledge-node-option {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.knowledge-node-option > span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-node-option input {
+  flex: none;
+  margin-top: 1px;
+  accent-color: var(--accent);
+}
+
+/*
+ * L'elenco delle note del centro, con il tetto e la riga «tutte».
+ *
+ * La riga sta **sopra** l'elenco e non dentro: e' l'unico comando che agisce su tutte le
+ * spunte, quindi sta dove si vede quante sono, prima di averne toccate. Sotto l'elenco
+ * servirebbe a qualcosa che si deve prima sapere quali sono.
+ */
+.knowledge-node-list {
+  display: flex;
+  max-height: 148px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.knowledge-node-list-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.knowledge-node-all {
+  padding: 1px 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--fs-10);
+  font-weight: 600;
+}
+
+.knowledge-node-all:hover {
+  text-decoration: underline;
+}
+
+.knowledge-node-list > .knowledge-node-option {
+  padding: 4px 8px;
+  overflow-y: auto;
+}
+
+.knowledge-node-hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  line-height: 1.55;
+}
+
+.knowledge-node-warn {
+  margin: 0;
+  color: var(--warn);
+  font-size: var(--fs-10);
+  line-height: 1.5;
+}
+
+
+/*
+ * La traccia delle note sulla risposta.
+ *
+ * Va nel piede e non sopra l'intestazione perche' risponde a una domanda che nasce **dopo**
+ * la lettura: si legge la risposta, ci si chiede se il modello ha usato gli appunti, e la
+ * risposta a quella domanda sta in fondo al nodo che si sta leggendo. Mettterla in alto la
+ * farebbe notare solo a chi non ha ancora il dubbio.
+ *
+ * Il colore e' volutamente tenue. Una riga che sembra un errore su ogni risposta che non ha
+ * note insegnerebbe a ignorarla, e il giorno in cui qualcosa va davvero storto quella riga
+ * non verrebbe piu' letta. Quindi il caso normale e' silenzioso e il caso anomalo e' saidato
+ * per il colore, non per la sua presenza.
+ */
+.response-knowledge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 6px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-10);
+  color: var(--text-faint);
+}
+
+.response-knowledge-toggle {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 5px 0 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.response-knowledge-toggle:hover {
+  color: var(--text);
+}
+
+.response-knowledge-toggle strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.response-knowledge-toggle .is-open {
+  transform: rotate(90deg);
+}
+
+/* Il caso in cui il canale e' chiuso: qui il colore serve, ed e' l'unico posto che usa. */
+.response-knowledge.is-quiet {
+  gap: 5px;
+  align-items: flex-start;
+  color: var(--warn);
+}
+
+.response-knowledge-list {
+  display: flex;
+  margin: 0;
+  padding: 2px 0 0 20px;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+}
+
+.response-knowledge-list > li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.response-knowledge-title {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.response-knowledge-hub,
+.response-knowledge-via {
+  flex: none;
+  opacity: 0.75;
+  font-size: var(--fs-9, 9px);
+}
+
+/*
+ * Il punto di contesto e la provenienza hanno colori diversi perche' rispondono a domande
+ * diverse: «di che cosa parla?» e «chi l'ha scelta?». Con lo stesso stile sarebbero due
+ * pezzetti di testo uguali e l'utente non avrebbe motivo di distinguere la nota che ha
+ * scelto lui da quella che il programma ha trovato per similitudine — che e' esattamente la
+ * distinzione che gli serve sapere.
+ */
+.response-knowledge-hub {
+  color: var(--accent);
+}
+
+.response-knowledge-via {
+  font-style: italic;
+}
+.empty-usage {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.inspector {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  width: 320px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 13px);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.inspector-header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector-header h2 {
+  margin: 0;
+  font-size: var(--fs-13);
+}
+
+.inspector-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 13px;
+}
+
+.inspector-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.inspector-section:first-child { padding-top: 0; }
+.inspector-section:last-child { border-bottom: 0; }
+.inspector-section h3 {
+  margin: 0 0 9px;
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.inspector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.inspector-value {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  text-overflow: ellipsis;
+}
+.inspector-value strong { color: var(--text); font-weight: 600; }
+.inspector-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.statusbar {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--chrome-bottom);
+  padding: 2px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-variant-numeric: tabular-nums;
+}
+.statusbar-spacer { flex: 1; }
+.statusbar .save-saving { color: var(--warn); }
+.statusbar .save-saved { color: var(--ok); }
+.statusbar .save-error { color: var(--err); }
+
+.btn {
+  display: inline-flex;
+  min-height: var(--control-min);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: var(--fs-11);
+  font-weight: 650;
+  white-space: nowrap;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 80ms ease;
+}
+.btn:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { cursor: not-allowed; opacity: 0.42; }
+.btn.primary {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+  background: var(--accent);
+  color: #fff;
+}
+.btn.primary:hover:not(:disabled) { border-color: var(--accent-strong); background: var(--accent-strong); color: #fff; }
+.btn.danger { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); color: var(--err); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.small { min-height: calc(25px * var(--ui-scale)); padding: 3px 7px; font-size: var(--fs-10); }
+
+.icon-btn {
+  display: inline-grid;
+  width: calc(27px * var(--ui-scale));
+  height: calc(27px * var(--ui-scale));
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-field, 7px);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) { border-color: var(--border); background: var(--surface-2); color: var(--text); }
+.icon-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+.icon-btn.danger:hover { border-color: color-mix(in srgb, var(--err) 35%, var(--border)); color: var(--err); }
+.icon-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-field > label,
+.field-label {
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+  font-weight: 650;
+}
+.form-field small,
+.field-help { color: var(--text-faint); font-size: var(--fs-9); line-height: 1.4; }
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: var(--bg);
+  color: var(--text);
+}
+/*
+ * I campi dei form crescono con il fattore perche' dentro ci finisce testo che
+ * scala: a 1.4 un campo alto 34px con dentro un carattere da 14px taglia la parte
+ * alta e bassa delle lettere, e il difetto si legge come un'interfaccia rotta.
+ */
+.input,
+.select { height: calc(34px * var(--ui-scale)); padding: 0 9px; }
+.textarea { min-height: 82px; resize: vertical; padding: 8px 9px; line-height: 1.45; }
+.input:hover,
+.select:hover,
+.textarea:hover { border-color: var(--border-strong); }
+.input:focus,
+.select:focus,
+.textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input.invalid { border-color: var(--err); }
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  align-items: center;
+  gap: 9px;
+}
+.slider-row input[type='range'] { width: 100%; accent-color: var(--accent); }
+.slider-value { color: var(--text-dim); font-size: var(--fs-10); font-variant-numeric: tabular-nums; text-align: right; }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 36px;
+}
+.toggle-copy { display: flex; flex-direction: column; gap: 2px; color: var(--text); font-size: var(--fs-11); }
+.toggle-copy small { color: var(--text-faint); font-size: var(--fs-9); }
+.toggle {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.toggle::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  content: "";
+  transition: translate 140ms ease, background 120ms ease;
+}
+.toggle.on { border-color: var(--accent); background: var(--accent-soft); }
+.toggle.on::after { translate: 15px 0; background: var(--accent-strong); }
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--overlay);
+  backdrop-filter: blur(5px);
+  animation: fade-in 120ms ease-out;
+}
+.dialog {
+  display: flex;
+  width: min(680px, 94vw);
+  max-height: min(760px, 90vh);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel, 15px);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: dialog-in 150ms ease-out;
+}
+.dialog.small { width: min(430px, 94vw); }
+.dialog.large { width: min(920px, 96vw); }
+.dialog-header {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dialog-header h2 { flex: 1; margin: 0; font-size: var(--fs-14); }
+.dialog-body { flex: 1; overflow-y: auto; padding: 16px; }
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
+
+.settings-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-tab {
+  position: relative;
+  padding: 8px 10px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 650;
+}
+.settings-tab:hover { color: var(--text); }
+.settings-tab.active { color: var(--accent-strong); }
+.settings-tab.active::after {
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  border-radius: var(--r-field, 2px);
+  background: var(--accent);
+  content: "";
+}
+.settings-panel { display: grid; gap: 15px; }
+.settings-section { display: grid; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.settings-section:last-child { padding-bottom: 0; border-bottom: 0; }
+.settings-section h3 { margin: 0; font-size: var(--fs-12); }
+.settings-section > p { margin: -4px 0 0; color: var(--text-dim); font-size: var(--fs-10); line-height: 1.45; }
+.settings-hint { margin: -2px 0 0; color: var(--text-faint); font-size: var(--fs-10); line-height: 1.5; }
+
+/*
+ * Il selettore degli aspetti: schede con un campione, non una tendina.
+ *
+ * Una tendina qui e' la scelta sbagliata per un motivo preciso: il nome di un
+ * aspetto non dice niente di come appare. «Google» potrebbe essere il blu acceso o
+ * una tavolozza qualsiasi, e l'unico modo di saperlo e' vederlo — quindi l'utente
+ * deve aprire la tendina, scegliere, chiudere, guardare, tornare indietro. La
+ * scheda mette il campione **dentro** la scelta, e i sei si confrontano fra loro
+ * senza toccare niente.
+ *
+ * Il campione non e' un'anteprima ridotta dell'app: e' la firma di ogni aspetto in
+ * tre pezzi — la forma del pannello, il colore dell'accento, e la forma del
+ * bottone. Sono i tre elementi che distinguono un aspetto da un altro; il resto e'
+ * lo stesso in tutti e sei.
+ */
+.look-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.look-card {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 10px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-10);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.look-card:hover { border-color: var(--border-strong); color: var(--text); }
+.look-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.look-card.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.look-name { line-height: 1.2; }
+
+/* Il campione: fondo, una barra, una scheda, un bottone. Ognuno dice una cosa
+   diversa — il fondo la base, la barra la densita', la scheda la forma, il
+   bottone la forma dei controlli. */
+.look-swatch {
+  display: flex;
+  width: 100%;
+  height: 46px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  border-radius: var(--r-field, 5px);
+}
+.look-swatch-bar { display: block; height: 5px; border-radius: var(--r-field, 2px); }
+.look-swatch-card { display: block; height: 18px; flex: 1; border-radius: var(--r-field, 3px); }
+.look-swatch-btn { display: block; width: 20px; height: 6px; border-radius: var(--r-field, 3px); }
+
+.look-swatch-default { background: #0b0d12; }
+.look-swatch-default .look-swatch-bar { background: #12151d; }
+.look-swatch-default .look-swatch-card { background: #181c26; border: 1px solid #252a37; }
+.look-swatch-default .look-swatch-btn { background: #7692ff; }
+
+.look-swatch-glass { background: linear-gradient(135deg, #2a3468, #6b3f7a 60%, #1d5a6b); }
+.look-swatch-glass .look-swatch-bar { background: rgb(255 255 255 / 34%); }
+.look-swatch-glass .look-swatch-card { background: rgb(255 255 255 / 20%); border: 1px solid rgb(255 255 255 / 40%); border-radius: var(--r-field, 8px); }
+.look-swatch-glass .look-swatch-btn { background: rgb(255 255 255 / 60%); border-radius: var(--r-pill, 999px); }
+
+.look-swatch-google { background: #f1f3f6; }
+.look-swatch-google .look-swatch-bar { background: #ffffff; border-bottom: 1px solid #dadde3; }
+.look-swatch-google .look-swatch-card { background: #ffffff; border: 1px solid #dadde3; border-radius: var(--r-field, 8px); }
+.look-swatch-google .look-swatch-btn { background: #0b57d0; border-radius: var(--r-pill, 999px); }
+
+.look-swatch-claude { background: #f5f3ee; }
+.look-swatch-claude .look-swatch-bar { background: #fbfaf7; }
+.look-swatch-claude .look-swatch-card { background: #fbfaf7; border: 1px solid #e2ddd2; border-radius: var(--r-field, 6px); }
+.look-swatch-claude .look-swatch-btn { background: #c1552d; border-radius: var(--r-field, 3px); }
+
+/* Il campione ASCII e' nero con il verde, come l'aspetto, altrimenti non
+   insegnerebbe niente. */
+.look-swatch-ascii { background: #000000; }
+.look-swatch-ascii .look-swatch-bar { background: #0a0a0a; border-bottom: 1px solid #2b2b2b; }
+.look-swatch-ascii .look-swatch-card { background: #0a0a0a; border: 1px solid #2b2b2b; border-radius: 0; }
+.look-swatch-ascii .look-swatch-btn { background: #33ff66; border-radius: 0; }
+
+.look-swatch-minimal { background: #000000; }
+.look-swatch-minimal .look-swatch-bar { background: #0c0c0c; }
+.look-swatch-minimal .look-swatch-card { background: #0c0c0c; border: 0; border-bottom: 1px solid #1e1e1e; border-radius: 0; }
+.look-swatch-minimal .look-swatch-btn { background: #b4b4b4; border-radius: var(--r-field, 2px); }
+
+/*
+ * Lo switch locale / API.
+ *
+ * Due stati e poi una scelta, non una lista di sei. I due non sono la stessa
+ * cosa: uno e un programma su questa macchina, l'altro e il computer di qualcun
+ * altro a cui va il tuo prompt. Averlo sepolto in un menu di nomi di provider e
+ * quello che rendeva illeggibile la prima versione.
+ *
+ * Il colore dice lo stato senza bisogno di leggerlo: grigio per locale, accento
+ * per API, ambra quando qualcosa manca. Il viola del tentativo precedente era
+ * una tinta senza significato — non diceva niente che il testo non dicesse gia,
+ * e stonava con tutto il resto. Qui la tinta veicola informazione.
+ */
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mode-switch-buttons {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+}
+
+.mode-switch-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mode-switch-option + .mode-switch-option { border-left: 1px solid var(--border); }
+.mode-switch-option:hover { color: var(--text-dim); }
+.mode-switch-option.is-on { color: var(--text); background: var(--surface-3); }
+
+/* API acceso: l'accento, non un altro colore. */
+.mode-switch-option.is-api.is-on {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-3));
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.mode-switch-provider {
+  max-width: 168px;
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-11);
+}
+
+.mode-switch-warn {
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+  white-space: nowrap;
+}
+
+.mode-switch-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 300px;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: var(--r-field, 7px);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  font-size: 9.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mode-switch-block em { font-style: normal; text-decoration: underline; }
+.mode-switch-block:hover { background: color-mix(in srgb, var(--warn) 20%, transparent); }
+
+.mode-switch-ok {
+  color: var(--ok);
+  font-size: var(--fs-9);
+  white-space: nowrap;
+}
+
+.field-with-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-with-button input { flex: 1 1 auto; min-width: 0; }
+
+/*
+ * Il pannello del registro.
+ *
+ * Le voci sono su una riga sola finche non si apre il dettaglio, perche il
+ * registro serve a trovare l'errore e non a leggerlo tutto: una riga per voce
+ * entra uno schermo intero di problemi recenti, che e quello che serve.
+ *
+ * Il colore distingue il livello, ma non e l'unico aiuto: anche l'etichetta dice
+ * il livello a parole, perche il colore da solo non basta per chi non distingue
+ * il rosso dal verde, e per un registro che si vuole poter leggere anche in una
+ * schermata in bianco e nero.
+ */
+.log-filters {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 10px;
+  color: var(--text-faint);
+}
+
+.log-filters select { max-width: 190px; }
+
+.log-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 7px);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-11);
+}
+
+.log-shown { color: var(--text-faint); font-size: var(--fs-10); white-space: nowrap; }
+
+.log-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.log-row {
+  padding: 4px 6px;
+  border-left: 2px solid var(--border);
+  border-radius: var(--r-field, 4px);
+}
+
+.log-row.is-error { border-left-color: var(--err); background: color-mix(in srgb, var(--err) 7%, transparent); }
+.log-row.is-warn { border-left-color: var(--warn); }
+.log-row.is-info { border-left-color: var(--border-strong); }
+.log-row.is-debug { border-left-color: var(--border); opacity: 0.75; }
+
+.log-row-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.log-row-head time {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  width: 62px;
+  font-weight: 600;
+}
+
+.log-level.is-error { color: var(--err); }
+.log-level.is-warn { color: var(--warn); }
+.log-level.is-info { color: var(--text-dim); }
+.log-level.is-debug { color: var(--text-faint); }
+
+.log-source {
+  flex: 0 0 auto;
+  width: 96px;
+  color: var(--text-dim);
+}
+
+.log-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.log-previous {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-3);
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+}
+
+.log-detail {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-field, 6px);
+  background: var(--surface-2);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: var(--fs-10);
+}
+
+.log-detail-row { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 8px; }
+.log-detail dt { color: var(--text-faint); }
+.log-detail dd { margin: 0; overflow-wrap: anywhere; color: var(--text-dim); }
+
+.log-counts { flex: 1 1 auto; color: var(--text-faint); font-size: var(--fs-10); }
+
+.log-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.log-empty p { max-width: 340px; margin: 0; font-size: var(--fs-11); line-height: 1.5; }
+
+.log-privacy {
+  margin: 10px 0 0;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  line-height: 1.5;
+}
+
+/* Sotto i 1200px la frase per esteso non entra e verrebbe tagliata a meta, che e
+   peggio che non averla: la parola che conta resta sul bottello. */
+@media (max-width: 1200px) {
+  .mode-switch-warn { display: none; }
+}
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.three-column { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.inline-message {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 8px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+  line-height: 1.45;
+}
+.inline-message.success { border-color: color-mix(in srgb, var(--ok) 35%, var(--border)); color: var(--ok); }
+.inline-message.warning { border-color: color-mix(in srgb, var(--warn) 35%, var(--border)); color: var(--warn); }
+.inline-message.error { border-color: color-mix(in srgb, var(--err) 35%, var(--border)); color: var(--err); }
+
+/*
+ * Uno **stato**, non un errore.
+ *
+ * Il server dei modelli e un programma separato che l'utente avvia per conto suo, e
+ * che sia fermo non e un guasto: e la normalita per chi lavora soprattutto in cloud.
+ * Con il rosso l'utente ha letto «l'app non si e aperta», e ha cercato il problema in
+ * NCHAT mentre il problema era un programma che non era avviato.
+ *
+ * Quindi niente bordo rosso e niente testo rosso: il testo principale resta nella
+ * tinta normale, che e anche piu leggibile, e il dettaglio tecnico scende sotto,
+ * piu piccolo, per chi lo vuole.
+ */
+.inline-message.is-quiet {
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
+.inline-message.is-quiet strong {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Il dettaglio tecnico, sotto: la spiegazione la si accetta anche senza leggerlo. */
+.inline-detail {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-faint);
+  font-size: 9.5px;
+}
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(3 5 10 / 28%);
+  backdrop-filter: blur(2px);
+}
+.node-palette {
+  width: min(420px, 92vw);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel, 14px);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: dialog-in 130ms ease-out;
+}
+.palette-search-wrap { position: relative; padding: 10px; border-bottom: 1px solid var(--border); }
+
+/*
+ * La palette aperta da un trascinamento. La riga dice perche la lista e quella:
+ * senza, una lista piu corta sembra un menu rotto invece di una scelta.
+ */
+.palette-connect-note {
+  margin: 0;
+  padding: 7px 12px 3px;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  line-height: 1.45;
+}
+.palette-search-wrap svg { position: absolute; top: 21px; left: 21px; color: var(--text-faint); }
+.palette-search { height: 38px; padding-left: 35px; font-size: var(--fs-12); }
+.palette-list { max-height: 340px; overflow-y: auto; padding: 6px; }
+.palette-item {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-field, 9px);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.palette-item:hover,
+.palette-item.active { border-color: var(--border); background: var(--surface-2); }
+.palette-item.active { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); background: var(--accent-soft); }
+.palette-item-icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--r-field, 8px); background: var(--accent-soft); color: var(--accent-strong); }
+.palette-item-copy { display: flex; flex-direction: column; gap: 2px; }
+.palette-item-copy strong { font-size: var(--fs-11); }
+.palette-item-copy span { color: var(--text-faint); font-size: var(--fs-9); }
+.palette-empty { padding: 26px; color: var(--text-faint); font-size: var(--fs-11); text-align: center; }
+
+.kbd {
+  display: inline-grid;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--r-field, 5px);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: var(--fs-9);
+  font-weight: 650;
+}
+
+.toast-stack {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  z-index: 150;
+  display: flex;
+  width: min(440px, calc(100vw - 24px));
+  flex-direction: column;
+  gap: 7px;
+  translate: -50% 0;
+  pointer-events: none;
+}
+.toast {
+  display: grid;
+  grid-template-columns: 8px 1fr 24px;
+  gap: 9px;
+  align-items: start;
+  padding: 10px 9px 10px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel, 10px);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+  animation: toast-in 180ms ease-out;
+}
+.toast-marker { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: var(--accent); }
+.toast.success .toast-marker { background: var(--ok); }
+.toast.warning .toast-marker { background: var(--warn); }
+.toast.error .toast-marker { background: var(--err); }
+.toast-copy strong { display: block; font-size: var(--fs-11); }
+.toast-copy p { margin: 3px 0 0; color: var(--text-dim); font-size: var(--fs-9); line-height: 1.45; white-space: pre-line; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+.context-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 190px;
+  overflow: hidden;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel, 10px);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.context-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--r-field, 6px);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+  text-align: left;
+}
+.context-menu button:hover { background: var(--surface-2); color: var(--text); }
+.context-menu button.danger { color: var(--err); }
+.context-separator { height: 1px; margin: 4px 3px; background: var(--border); }
+
+.error-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--err) 34%, var(--border));
+  border-radius: var(--r-field, 9px);
+  background: color-mix(in srgb, var(--err) 7%, transparent);
+  color: var(--err);
+  font-size: var(--fs-10);
+}
+.error-card-header { display: flex; align-items: center; gap: 6px; padding: 7px 8px; font-weight: 700; }
+.error-card-body { padding: 0 8px 8px; color: var(--text-dim); line-height: 1.45; }
+.error-card details { border-top: 1px solid color-mix(in srgb, var(--err) 18%, var(--border)); }
+.error-card summary { padding: 5px 8px; color: var(--text-faint); cursor: pointer; font-size: var(--fs-9); }
+.error-card pre { max-height: 130px; margin: 0; overflow: auto; padding: 7px 8px; color: var(--text-dim); font-size: var(--fs-8); white-space: pre-wrap; }
+
+.onboarding {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 8;
+  width: min(440px, calc(100vw - 40px));
+  padding: 22px;
+  translate: -50% -50%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel, 16px);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow);
+  text-align: center;
+  backdrop-filter: blur(16px);
+}
+.onboarding-mark { display: grid; width: 46px; height: 46px; margin: 0 auto 12px; place-items: center; border-radius: var(--r-panel, 13px); background: var(--accent-soft); color: var(--accent-strong); }
+.onboarding h1 { margin: 0 0 5px; font-size: var(--fs-18); }
+.onboarding > p { margin: 0 0 16px; color: var(--text-dim); font-size: var(--fs-11); }
+.onboarding-steps { display: grid; gap: 8px; margin-bottom: 16px; text-align: left; }
+.onboarding-step { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; padding: 8px; border: 1px solid var(--border); border-radius: var(--r-field, 9px); background: var(--surface-2); color: var(--text-dim); font-size: var(--fs-10); line-height: 1.45; }
+.onboarding-step-number { display: grid; width: 21px; height: 21px; place-items: center; border-radius: var(--r-field, 6px); background: var(--accent-soft); color: var(--accent-strong); font-size: var(--fs-9); font-weight: 700; }
+.onboarding-step.done { border-color: color-mix(in srgb, var(--ok) 30%, var(--border)); color: var(--text-dim); }
+.onboarding-actions { display: flex; justify-content: center; gap: 7px; }
+
+.preview-tabs { display: flex; gap: 3px; margin-bottom: 10px; }
+.preview-tab { flex: 1; padding: 7px; border: 1px solid var(--border); border-radius: var(--r-field, 7px); background: var(--surface-2); color: var(--text-dim); font-size: var(--fs-10); }
+.preview-tab.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+.code-preview {
+  max-height: 480px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: #0b0f17;
+  color: #d7deeb;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: var(--fs-10);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.token-meter { display: grid; gap: 8px; }
+.token-meter-value { color: var(--text); font-size: var(--fs-28); font-weight: 700; }
+.meter-track { height: 7px; overflow: hidden; border-radius: var(--r-pill, 999px); background: var(--surface-3); }
+.meter-fill { height: 100%; border-radius: inherit; background: var(--accent); }
+.meter-fill.warning { background: var(--warn); }
+
+.import-choice { display: grid; gap: 10px; }
+.import-choice button { justify-content: flex-start; min-height: 58px; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1100px) {
+  .workspace-name { width: 130px; }
+  .topbar .optional-label { display: none; }
+  .inspector { width: 290px; }
+}
+
+@media (max-width: 900px) {
+  .topbar { gap: 6px; padding: 0 8px; }
+  .brand-mark { display: none; }
+  .workspace-name { width: 100px; }
+  .model-select { max-width: 130px; }
+  .inspector {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: min(320px, calc(100vw - 16px));
+  }
+  .statusbar .optional-status { display: none; }
+  .two-column,
+  .three-column { grid-template-columns: 1fr; }
+}
+
+/* With an explicit node height the textarea fills the body and scrolls. */
+.has-explicit-size .node-textarea {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
+/* --- Usage -----------------------------------------------------------------
+ *
+ * I consumi hanno una forma sola, ripetuta: un numero grande con la sua etichetta e
+ * la sua nota sotto. Tre numeri grandi in una riga dicono subito quale dei tre e'
+ * «la spesa» e quale e' un conteggio, e la nota sotto tiene la frase lunga che spiega
+ * come e' fatto quel numero senza occupare la riga.
+ */
+.usage-button {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 7px);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font: inherit;
+  font-size: var(--fs-10);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.usage-button:hover { color: var(--text); border-color: var(--border-strong); }
+.usage-button-label { font-weight: 600; }
+
+.usage-ranges { display: flex; gap: 4px; margin-bottom: 14px; }
+.usage-range {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill, 999px);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: var(--fs-10);
+  cursor: pointer;
+}
+.usage-range:hover { color: var(--text); }
+.usage-range.is-on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.usage-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.usage-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: var(--surface-2);
+}
+.usage-total-label { color: var(--text-faint); font-size: var(--fs-9); text-transform: uppercase; letter-spacing: 0.06em; }
+.usage-total-value { color: var(--text); font-size: var(--fs-19); font-weight: 600; font-variant-numeric: tabular-nums; }
+.usage-total-note { color: var(--text-faint); font-size: var(--fs-9); line-height: 1.4; }
+
+/* La barra del contesto: verde finche c'e spazio, ambra quando e' finito. Il colore
+ * segue la percentuale perche' e l'unico segnale che si vede senza leggere. */
+.usage-context {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: var(--surface-2);
+}
+.usage-context-head { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--fs-10); }
+.usage-context-model {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usage-context-bar {
+  height: 5px;
+  margin: 8px 0 5px;
+  overflow: hidden;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface);
+}
+.usage-context-fill { height: 100%; border-radius: var(--r-pill, 999px); background: var(--accent); transition: width 0.2s ease; }
+.usage-context-fill.is-high { background: var(--warn); }
+.usage-context-numbers { color: var(--text-faint); font-size: var(--fs-9); font-variant-numeric: tabular-nums; }
+.usage-context-numbers em { margin-left: 6px; font-style: normal; opacity: 0.75; }
+
+.usage-table { width: 100%; border-collapse: collapse; font-size: var(--fs-10); }
+.usage-table th {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+.usage-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+.usage-table .usage-num { text-align: right; font-variant-numeric: tabular-nums; }
+.usage-model-name { display: block; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-model-provider { display: block; color: var(--text-faint); font-size: var(--fs-9); }
+.usage-footnote { margin-right: auto; color: var(--text-faint); font-size: var(--fs-9); }
+
+/*
+ * La ricerca del progetto: una barra al centro, i risultati sotto, il grafo dietro.
+ *
+ * Non e' un dialogo come gli altri, e non per pigrizia. Un dialogo copre il grafo con
+ * uno sfondo scuro, e qui il grafo e' **il contenuto**: si cerca perche' si sta
+ * guardando qualcosa, e coprire quello che si sta guardando sarebbe togliere il
+ * motivo della ricerca. Per questo lo sfondo e' una velatura leggera e si vede la
+ * tela sotto.
+ *
+ * Sta al **centro**, e non in alto come era prima, perche' al centro e' dove cade
+ * l'occhio: una barra spostata in alto costringe a guardare in alto, e la prima cosa
+ * che una ricerca deve insegnare e' che si guarda li' dove sta. La velatura resta
+ * leggera per lo stesso motivo per cui il grafo resta visibile.
+ *
+ * Il pannello ha un bordo **presente** anche nell'aspetto minimale, che di solito
+ * toglie i bordi. Il motivo e' lo stesso della finestra dei Settings: una barra senza
+ * bordo non si stacca dal fondo, sembra parte della tela, e i risultati diventano
+ * illeggibili sopra un nodo chiaro.
+ */
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  /* Volutamente piu' leggera del fondo dei dialoghi: la tela deve restare leggibile
+     sotto, altrimenti si cerca alla cieca. */
+  background: rgb(0 0 0 / 34%);
+  animation: fade-in 100ms ease-out;
+}
+
+.search-panel {
+  display: flex;
+  width: min(620px, 94vw);
+  max-height: 74vh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-panel, 14px);
+  background: var(--surface);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 34%);
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-14);
+  outline: none;
+}
+.search-input::placeholder { color: var(--text-faint); }
+
+/*
+ * La casella di ricerca **non** mette l'anello del tema.
+ *
+ * Il tema mette un anello arancione su ogni `input:focus-visible`, e qui non c'e' un
+ * modo per capire che il campo e' quello giusto senza guardare: la finestra e' una
+ * finestra modale e dentro c'e' un solo campo. L'anello non informerebbe nessuno,
+ * coprirebbe il testo, e sarebbe la cosa piu' luminosa e piu' inutile dello schermo.
+ *
+ * Nota sul perche' `outline: none` non bastava: l'anello del tema e' un **box-shadow**,
+ * non un `outline`. Togliere il contorno del campo lasciava l'anello acceso, ed e'
+ * quello che si vedeva. Serve annullare il `box-shadow`.
+ *
+ * Vale solo per questo campo, e non per gli input del tema: gli altri campi restano
+ * con l'anello, perche' in un form con piu' campi quello e' l'unico modo di sapere
+ * dove si sta scrivendo. E il pulsante di chiusura lo mantiene.
+ */
+.search-input:focus-visible {
+  box-shadow: none;
+}
+
+/*
+ * Il gruppo solo visivo.
+ *
+ * --- Perche' `!important` qui ---
+ *
+ * React Flow scrive `pointer-events: all` **inline** sul contenitore di ogni nodo, e uno
+ * stile inline batte qualsiasi foglio di stile a parita' di specificita'. Quindi nessuna
+ * regola `.react-flow__node-output { pointer-events: none }` avrebbe funzionato: si
+ * potrebbe alzare la specificita' all'infinito e perderebbe lo stesso, perche' la
+ * specificita' conta solo fra regole, e questa e' gia' applicata.
+ *
+ * Serve perche' la cornice e' un rettangolo **grande quanto i suoi membri**, e sta
+ * disopra a loro. Senza questo, il click arrivava alla cornice e non al nodo: si
+ * cliccava sopra una risposta e si selezionava il gruppo. Un gruppo che copre quello che
+ * contiene e' il contrario di un gruppo che serve a organizzare, e il difetto e' di
+ * quelli che non si vedono finche' non si prova a cliccare.
+ *
+ * La barra resta cliccabile: e' l'unica parte che deve fare qualcosa — il nome, i
+ * colori, i comandi — ed e' anche la maniglia per spostare il gruppo.
+ */
+.react-flow__node-output,
+.react-flow__node-group {
+  pointer-events: none !important;
+}
+
+.react-flow__node-output .group-frame-bar,
+.react-flow__node-group .group-frame-bar,
+.react-flow__node-output .group-frame-panel,
+.react-flow__node-group .group-frame-bar > * {
+  pointer-events: auto !important;
+}
+
+/*
+ * La cornice del gruppo visivo non e' una card: e' un bordo tratteggiato intorno a
+ * quello che contiene, e dentro non c'e' niente da leggere. Per questo non ha lo sfondo
+ * pieno dell'output e non ha pannello.
+ *
+ * Il colore arriva da `--group-color`, dichiarato dalla classe di variante. Un'unica
+ * variabile per tutto — bordo, pastiglia, etichetta — cosi' cambiarne una cambia il
+ * gruppo intero e non lascia metà cornice di un colore e metà di un altro.
+ *
+ * I selettori sono **a due classi**, e non a una, perche' `v2.css` viene importato dopo
+ * questo foglio e a parita' di specificita' vince l'ultimo. Con una sola classe,
+ * `.group-frame` di v2.css — che mette `border: ... dashed var(--accent)` — prenderebbe
+ * il sopravvento e il gruppo avrebbe il colore del tema per sempre, mentre le pastiglie
+ * dei colori, che non hanno concorrenti, funzionerebbero. Il colore sembrerebbe scelto e
+ * non cambierebbe niente: il difetto peggiore, perche' si vede solo guardando la
+ * cornice e non la pastiglia.
+ */
+.group-frame.group-frame-visual {
+  /*
+   * `position: relative` serve a dare al nome un punto di appoggio: senza, il
+   * `top: -32px` della barra lo collocherebbe rispetto alla pagina e il nome
+   * finirebbe nell'angolo in alto a sinistra dello schermo, lontano dal suo gruppo.
+   */
+  position: relative;
+  border-color: var(--group-color, var(--accent));
+  background: color-mix(in srgb, var(--group-color, var(--accent)) 4%, transparent);
+}
+
+.group-frame.group-frame-visual.is-selected {
+  border-color: color-mix(in srgb, var(--group-color, var(--accent)) 85%, white 15%);
+}
+
+/*
+ * La pagina della conoscenza.
+ *
+ * Due colonne con una divisione netta: la mappa a sinistra, l'elenco a destra. Non e' una
+ * scelta estetica — e' la distinzione fra **dove** e **cosa**, che e' la stessa ragione per
+ * cui ci sono due modi di guardare l'archivio. La mappa serve per orientarsi, e non si puo'
+ * leggere; l'elenco serve per leggere, e non si puo' orientare. Metterle nella stessa
+ * colonna le farebbe litigare per lo spazio.
+ */
+.knowledge-page {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.knowledge-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.knowledge-brand,
+.knowledge-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.knowledge-brand {
+  font-size: var(--fs-15);
+  font-weight: 600;
+}
+
+.knowledge-count {
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  font-weight: 400;
+}
+
+/*
+ * I bottoni dell'intestazione non si stringono mai in una colonna.
+ *
+ * Con cinque comandi e una finestra stretta, il passaggio naturale sarebbe stato metterli
+ * uno sotto l'altro — e quello che si ottiene e' una torre di cinque bottoni che spinge
+ * il titolo fuori dalla schermata. Invece l'intestazione scorre in orizzontale: e' la
+ * stessa forma che ha la barra in alto nel workspace, e la coerenza li' fa risparmiare di
+ * capire da capo che quel pulsante apre cosa.
+ */
+.knowledge-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+/*
+ * Il pannello dell'elenco si appoggia **qui** e non alla mappa.
+ *
+ * `.knowledge-body` e' il riferimento perche' e' lui che comincia subito sotto
+ * l'intestazione: se il riferimento fosse `.knowledge-map`, che non ha un bordo proprio ma
+ * sta incastonato dentro, il pannello si posizionerebbe sulla mappa — che e' esattamente
+ * quello che si vuole, ma per la ragione sbagliata: basterebbe un padding sulla mappa per
+ * spostarlo fuori. Qui la regola e' una sola e regge anche se la mappa un domani smette
+ * di essere l'unica cosa dentro.
+ */
+.knowledge-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.knowledge-map {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * `display: block` esplicito su un `<canvas>`.
+ *
+ * Il canvas e' un elemento **inline** di default, e fra un elemento inline e il fondo
+ * finisce uno spazio per una riga di testo: il disegno parte qualche pixel piu' in basso e
+ * un bordo storto. Sembra un dettaglio e invece e' il primo sintomo di un layout che non
+ * combacia, quando si comincia a litigare con `width` e `height`.
+ */
+.knowledge-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.knowledge-canvas:active {
+  cursor: grabbing;
+}
+
+.knowledge-hint,
+.knowledge-empty,
+.knowledge-linking {
+  position: absolute;
+  right: 0;
+  left: 0;
+  margin: 0;
+  color: #a49c92;
+  font-size: var(--fs-10);
+  text-align: center;
+  pointer-events: none;
+}
+
+.knowledge-hint {
+  bottom: 12px;
+}
+
+.knowledge-empty {
+  top: 42%;
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+
+/*
+ * Lo stato del collegamento si annuncia **al centro in basso**, dove c'era la riga dei
+ * suggerimenti, e non in un angolo.
+ *
+ * E' la spiegazione di un gesto in corso, quindi va dove si guarda: durante il
+ * collegamento l'attenzione e' sulla mappa, e una riga in basso al centro e' l'unica
+ * posizione che l'occhio incontra senza dover cercare. In un angolo servirebbe un avviso
+ * che spiega che cosa sta succedendo proprio mentre sta succedendo — cioe' troppo tardi.
+ */
+.knowledge-linking {
+  bottom: 34px;
+  color: #f3ede0;
+  font-size: var(--fs-11);
+  font-weight: 500;
+}
+
+/*
+ * L'elenco **non sta sempre aperto**: si mette sopra la mappa e si chiude.
+ *
+ * Era una colonna fissa che toglieva metà della mappa, e la mappa e' l'unica cosa che
+ * dice «di cosa parla questo insieme»: con una colonna di testo che guarda sempre dalla
+ * parte destra non c'e' piu' niente da guardare al centro, e l'archivio che e' nato per
+ * orientare diventa un registro da sfogliare.
+ *
+ * `position: absolute` perche' il pannello non deve **spostare** niente quando si apre:
+ * se spostasse la mappa, aprire l'elenzo cambierebbe quello che si sta guardando, e
+ * l'utente perderebbe il punto esattamente mentre va a leggere una nota che aveva
+ * appena trovato.
+ */
+.knowledge-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  width: 360px;
+  max-width: 100%;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: -14px 0 32px rgb(0 0 0 / 22%);
+}
+
+.knowledge-panel-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-13);
+}
+
+.knowledge-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.knowledge-panel-section {
+  margin: 12px 0 0;
+  padding: 0 12px;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/*
+ * I punti di contesto si distinguono dalle note **per forma**, non per colore.
+ *
+ * Il colore e' gia' pieno di significato — il centro e' il colore con cui sono disegnate
+ * le note che vi pendono — e aggiungere un altro colore per la voce di elenco farebbe
+ * dipendere la lettura da una tinta che sullo schermo scuro non sempre si distingue. Il
+ * bordo chiaro dice «questo e' un centro» su qualsiasi tema e su qualsiasi monitor.
+ */
+.knowledge-entry-hub {
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: var(--r-field, 9px);
+  margin-bottom: 3px;
+}
+
+.knowledge-hub-notes {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.knowledge-entries {
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.knowledge-entry {
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: var(--r-field, 9px);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.knowledge-entry:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.knowledge-entry.is-selected {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/*
+ * Il titolo e' su una riga, l'antefatto sull'altra.
+ *
+ * Il motivo e' che i due dicono cose diverse: il titolo e' **cosa** e' la nota, l'antefatto
+ * e' **perche'** e' finita li'. Metteli insieme si capirebbe solo uno dei due, e proprio
+ * quello che serve di meno per orientarsi.
+ */
+.knowledge-entry-title,
+.knowledge-detail-why {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-entry-title {
+  font-size: var(--fs-12);
+}
+
+.knowledge-entry-why {
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+}
+
+.knowledge-detail {
+  padding: 12px;
+}
+
+.knowledge-detail-why {
+  margin: 8px 0 0;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+}
+
+.knowledge-detail-text {
+  margin: 12px 0;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.knowledge-detail-source {
+  margin: 0 0 12px;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+}
+
+.knowledge-detail-actions {
+  display: flex;
+  gap: 7px;
+}
+
+/*
+ * I collegamenti di una nota: il nome della nota dall'altra parte, e il bottone che toglie
+ * il filo accanto.
+ *
+ * Il nome e' un pulsante e non una riga di testo perche' sia **raggiungibile**: un legame
+ * che porta a una nota che si puo' solo leggere sullo schermo serve a poco — si vede che
+ * esiste, e poi non si puo' andare a guardare di cosa parla. Con il nome cliccabile il
+ * collegamento e' un modo di spostarsi nell'archivio, che e' quello che un archivio con
+ * legami fa di utile.
+ */
+.knowledge-detail-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0;
+}
+
+.knowledge-detail-links-label {
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.knowledge-detail-link {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 9px;
+  border-radius: var(--r-field, 9px);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.knowledge-detail-link-name {
+  overflow: hidden;
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-12);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-detail-link-name:hover {
+  text-decoration: underline;
+}
+
+.knowledge-detail-links-empty {
+  margin: 0 0 4px;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+
+.knowledge-detail-links .btn {
+  align-self: flex-start;
+}
+
+.knowledge-none {
+  padding: 12px;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+}
+
+/*
+ * Il deposito: la cartella, e quello che c'e' dentro adesso.
+ *
+ * Il percorso sta su una riga sua e non dentro un paragrafo insieme al resto, perche' e' l'unica
+ * cosa che va **copiata** — e' l'unica informazione che serve quando il file manager non e'
+ * aperto. Travolto in un paragrafo, il percorso si taglia e da li' non si copia piu' niente di
+ * utile, e il posto in cui l'utente finisce a cercare le sue note e' esattamente quello da cui
+ * non le trova.
+ */
+.vault-where {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 14px 0 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.vault-where-label {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vault-where-path {
+  overflow-x: auto;
+  color: var(--text);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+  user-select: all;
+}
+
+.vault-where-saved,
+.vault-where-report {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-11);
+}
+
+.vault-where-error {
+  margin: 6px 0 0;
+  color: var(--err);
+  font-size: var(--fs-11);
+  line-height: 1.5;
+}
+
+/*
+ * I pulsanti vanno a capo invece di scorrere.
+ *
+ * Sono quattro e ciascuno fa una cosa diversa; su una finestra stretta una riga sola li
+ * farebbe uscire dal bordo, con l'ultimo — quello che scrive — tagliato per meta'. Meglio due
+ * righe: il pulsante che si preme e' sempre quello che si vede intero.
+ */
+.vault-where-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.vault-where-note {
+  margin: 14px 0 0;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  line-height: 1.6;
+}
+
+/*
+ * «Dove la metto?» — la finestra che chiede il posto di una nota appena salvata.
+ *
+ * Il campo del titolo sta per primo perche' e' l'unico pezzo che si puo' correggere senza
+ * pensarci, e l'utente lo rifarebbe volentieri: averlo sotto gli occhi mentre sceglie il
+ * centro fa rispondere due domande insieme. I centri vengono **sotto**, in un elenco di
+ * righe cliccabili e non in un menu a tendina: con tre centri un menu va benissimo, ma con
+ * venti un menu e' una scatola di venti righe in cui bisogna sapere gia' il nome giusto
+ * per scegliere, cioe' esattamente la cosa che si sta cercando.
+ */
+.save-note-where {
+  margin: 0 0 14px;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+
+.save-note-where-fieldset {
+  display: flex;
+  margin: 14px 0 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+}
+
+.save-note-where-fieldset legend {
+  padding: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.save-note-where-empty {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+}
+
+.save-note-where-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.save-note-where-option {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-field, 9px);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.save-note-where-option:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/*
+ * La scelta si vede dal **bordo**, non da un segno di spunta.
+ *
+ * Un segno accanto al nome dice «questa e' giusta», e in una lista dove tutte le righe
+ * sembrano opzioni e' una riga in piu' da leggere. Il bordo dice la stessa cosa occupando
+ * il posto che la riga ha gia', e la riga scelta si stacca dal fondo senza che l'occhio
+ * debba andare a cercare un simbolino.
+ */
+.save-note-where-option.is-chosen {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.save-note-where-option.is-new {
+  margin-top: 2px;
+}
+
+.save-note-where-option span {
+  display: flex;
+  flex-direction: column;
+}
+
+.save-note-where-option strong {
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+
+.save-note-where-option small {
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+}
+
+.save-note-where-suggest {
+  display: flex;
+  gap: 7px;
+  margin: 10px 0 0;
+  align-items: flex-start;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  line-height: 1.5;
+}
+
+.save-note-where-suggest svg {
+  margin-top: 2px;
+  flex: none;
+}
+
+/*
+ * Il passaggio per intero, e non un'anteprima.
+ *
+ * `max-height` con lo scorrimento dentro: e' l'unica occasione in cui l'utente vede
+ * esattamente quello che verra' scritto nell'archivio, e deve poterlo scorrere fino in
+ * fondo senza che la finestra diventi alta quanto la risposta. Il testo e' in sola
+ * lettura e copiabile, e questo e' voluto — la selezione qui non deve diventare la
+ * selezione che verra' salvata al prossimo clic sul nodo.
+ */
+.save-note-where-preview {
+  margin-top: 16px;
+}
+
+.save-note-where-preview-label {
+  margin: 0 0 5px;
+  color: var(--text-faint);
+  font-size: var(--fs-10);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.save-note-where-preview-body {
+  max-height: 190px;
+  overflow: auto;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+/*
+ * Le pastiglie del colore di una nota.
+ *
+ * La palette e' **la stessa** dei gruppi e delle cornici, e quindi le classi di variante
+ * sono le stesse: `.knowledge-swatch-sky` e `.group-swatch-sky` prendono la tinta dalla
+ * stessa regola. E' una riusa e non una copia, perche' due elenchi di colori che si
+ * somigliano divergono — e la verifica che i valori combacino sta in
+ * `knowledgeColour.test.ts`, che legge questo foglio di stile come testo.
+ *
+ * Il colore `default` non ha una tinta: e' «il colore del tema», e la pastiglia lo mostra
+ * neutro perche' un buco nero sembrerebbe un colore che l'utente non puo' scegliere.
+ */
+.knowledge-colours {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin: 10px 0 2px;
+}
+
+.knowledge-swatch {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--group-color, var(--text-faint));
+  color: #14110e;
+  cursor: pointer;
+}
+
+.knowledge-swatch svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Il colore scelto si legge dal **bordo**, non dal riempimento: il riempimento e' gia' il
+   colore, e un segno dentro coprirebbe proprio quello che si sta scegliendo. */
+.knowledge-swatch.is-on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.knowledge-swatch-default { --group-color: var(--text-faint); }
+.knowledge-swatch-amber   { --group-color: #f4b740; }
+.knowledge-swatch-sky     { --group-color: #38bdf8; }
+.knowledge-swatch-rose    { --group-color: #fb7185; }
+.knowledge-swatch-green   { --group-color: #4ade80; }
+.knowledge-swatch-violet  { --group-color: #a78bfa; }
+
+:root[data-theme='light'] .knowledge-swatch-amber  { --group-color: #c98a08; }
+:root[data-theme='light'] .knowledge-swatch-green  { --group-color: #16a34a; }
+:root[data-theme='light'] .knowledge-swatch-violet { --group-color: #7c3aed; }
+
+/*
+ * Il bottone della conoscenza sta accanto a quello di Home, ed e' una `.tab` come lui per
+ *che si comporti allo stesso modo al passaggio del mouse e al:focus — non perche' sia una
+ * scheda, ma perche' e' uno dei due posti in cui si torna sempre.
+ */
+.knowledge-tab {
+  color: var(--text-dim);
+}
+
+.knowledge-tab:hover {
+  color: var(--text);
+}
+
+:root[data-theme='light'] .knowledge-tab {
+  color: var(--text-dim);
+}
+
+/*
+ * Il nome sta **sopra** la cornice, non dentro.
+ *
+ * Dentro, il nome si mangiava il posto del contenuto: spingeva la cornice verso il
+ * basso, si ritrovava a metà del primo nodo e sembrava scritto sul nodo invece che sul
+ * gruppo. Sopra, e' quello che e': un'etichetta sulla scatola, che si legge prima dei
+ * nodi e dice a che cosa si sta guardando.
+ *
+ * **La barra esce dal flusso** con `position: absolute`, e non per un effetto ma per
+ *che non contamini la misura. Una cornice non ha una dimensione sua: la calcola
+ * `computeGroupFrame` dai nodi dentro, e React Flow poi la **rimisura** sul contenuto e
+ * usa quella. Finche' la barra stava dentro, il contenuto poteva spingere il bordo e la
+ * misura tornava diversa da quella calcolata — ed e' esattamente il tremito: due misure
+ * che si correggono a vicenda, cornice che respira. Fuori dal flusso non la tocca, e il
+ * nome puo' anche essere piu' grande senza allargare il riquadro.
+ */
+.group-frame.group-frame-visual {
+  /*
+   * `position: relative` serve a dare al nome un punto di appoggio: senza, il
+   * `top: -32px` della barra lo collocherebbe rispetto alla pagina e il nome
+   * finirebbe nell'angolo in alto a sinistra dello schermo, lontano dal suo gruppo.
+   */
+  position: relative;
+  border-color: var(--group-color, var(--accent));
+  background: color-mix(in srgb, var(--group-color, var(--accent)) 4%, transparent);
+}
+
+.group-frame.group-frame-visual.is-selected {
+  border-color: color-mix(in srgb, var(--group-color, var(--accent)) 85%, white 15%);
+}
+
+.group-frame-visual .group-frame-bar {
+  position: absolute;
+  top: -32px;
+  right: 0;
+  left: 0;
+  height: auto;
+  padding: 0;
+  align-items: center;
+}
+
+/*
+ * Il nome e' solo testo.
+ *
+ * Niente sfondo, niente bordo, niente pastiglia: quello che c'era sembrava un pulsante
+ * dentro un nodo, e quindi qualcosa da premere — mentre l'unica cosa da fare e' scrivere
+ * un nome. E' anche piu' grande, perche' adesso e' l'etichetta del gruppo e non un
+ * dettaglio: e' la prima cosa che si legge.
+ *
+ * Il troncamento con i puntini serve a una cosa precisa: un nome lunghissimo non deve
+ * mai poter allargare la cornice. `min-width: 0` e' quello che lo permette dentro un
+ * `flex` — senza, il testo che non puo' restringersi detta al contenitore quanto essere
+ * largo, e la cornice si allarga per colpa di una parola.
+ */
+.group-frame-visual .group-frame-label {
+  min-width: 0;
+  overflow: hidden;
+  padding: 1px 0;
+  border: 0;
+  background: none;
+  color: var(--group-color, var(--accent));
+  font-size: var(--fs-13);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-frame-visual .group-frame-label:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Il conteggio accanto al nome e' il dato, non l'etichetta: va piu' piano. */
+.group-frame-visual .group-frame-tokens {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+/*
+ * Il colore di default non e' un colore: e' «il colore del tema». Per questo non ha una
+ * classe propria — e una ce l'avrebbe, e servirebbe solo per riscrivere a mano
+ * l'accento del tema in un posto che non lo seguirebbe se il tema cambiasse.
+ */
+.group-frame.group-default {
+  --group-color: var(--accent);
+}
+
+.group-frame.group-amber {
+  --group-color: #f4b740;
+}
+
+.group-frame.group-sky {
+  --group-color: #38bdf8;
+}
+
+.group-frame.group-rose {
+  --group-color: #fb7185;
+}
+
+.group-frame.group-green {
+  --group-color: #4ade80;
+}
+
+.group-frame.group-violet {
+  --group-color: #a78bfa;
+}
+
+/*
+ * Il nome: un pulsante che diventa un campo.
+ *
+ * Un campo **sempre** aperto sembrerebbe piu' semplice, ma la barra del gruppo e' anche
+ * la maniglia per spostarlo, e scrivere dentro un campo cattura il trascinamento
+ * selezionando testo: il gruppo non si sposterebbe piu'. Cosi' il nome e' un pulsante finche'
+ * non lo si tocca, e la scrittura parte solo quando l'utente ha gia' deciso di rinominare.
+ */
+.group-title-input {
+  min-width: 90px;
+  max-width: 260px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill, 999px);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-9);
+  outline: none;
+}
+
+/* I colori: palline piccole, accanto ai comandi, senza rubare la barra. */
+.group-colours {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.group-swatch {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--group-color, var(--accent));
+  color: #14110e;
+  cursor: pointer;
+}
+
+.group-swatch svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* Il colore scelto si vede dal bordo, non dal riempimento che gia' e' colorato. */
+.group-swatch.is-on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--bg);
+}
+
+/*
+ * I colori vanno dichiarati anche per le palline, non solo per la cornice: la pallina
+ * e' un elemento **figlio** della cornice e `--group-color` e' dichiarato sul padre, ma
+ * una classe di variante come `.group-amber` su un elemento interno non eredita il
+ * valore, quindi ogni pallina riceve il proprio.
+ */
+.group-swatch-default { --group-color: var(--accent); }
+.group-swatch-amber  { --group-color: #f4b740; }
+.group-swatch-sky    { --group-color: #38bdf8; }
+.group-swatch-rose   { --group-color: #fb7185; }
+.group-swatch-green  { --group-color: #4ade80; }
+.group-swatch-violet { --group-color: #a78bfa; }
+
+/* Il tema chiaro ha bisogno di colori un filo piu' scuri: gli stessi sul fondo chiaro
+   si vedono appena, e una cornice che non si vede non ordina niente. */
+:root[data-theme='light'] .group-frame.group-amber  { --group-color: #c98a08; }
+:root[data-theme='light'] .group-frame.group-green  { --group-color: #16a34a; }
+:root[data-theme='light'] .group-frame.group-violet { --group-color: #7c3aed; }
+:root[data-theme='light'] .group-swatch-amber        { --group-color: #c98a08; }
+:root[data-theme='light'] .group-swatch-green        { --group-color: #16a34a; }
+:root[data-theme='light'] .group-swatch-violet       { --group-color: #7c3aed; }
+
+.search-close {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-field, 5px);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.search-close:hover { background: var(--surface-2); color: var(--text); }
+
+/*
+ * L'unico testo che resta nella ricerca: «non c'e' niente».
+ *
+ * Ha una riga sola e niente intorno, perche' quando compare la lista e' vuota e il
+ * messaggio e' l'unica cosa da guardare. Con l'allineamento al centro del pannello
+ * diventa una riga ferma in mezzo a uno spazio vuoto — che e' esattamente il messaggio
+ * che vuole dare.
+ */
+.search-hint {
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--text-dim);
+  font-size: var(--fs-11);
+  line-height: 1.55;
+  text-align: center;
+}
+.search-hint strong { color: var(--text); }
+.search-foot kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 4px);
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: var(--fs-9);
+}
+
+.search-results {
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.search-hit {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--r-field, 7px);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.search-hit.is-active { background: var(--accent-soft); }
+
+.search-hit-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/*
+ * L'etichetta del tipo, colorata **solo** per i tre tipi che l'utente cerca per
+ * nome — prompt, nota, risposta. Gli altri restano grigi: colorare tutto e' il modo
+ * piu' rapido per non far notare niente, e il colore deve dire qualcosa.
+ */
+.search-kind {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-3);
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.search-kind.is-prompt { background: var(--accent-soft); color: var(--accent); }
+.search-kind.is-note { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.search-kind.is-response { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+
+.search-hit-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-hit-count {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+  font-variant-numeric: tabular-nums;
+}
+
+.search-hit-snippet {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-10);
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* La parola cercata. Fondo acceso, non testo colorato: una riga lunga con tre parole
+   colorate diventa illeggibile, e la parola cercata deve restare l'unica cosa che
+   l'occhio trova. */
+.search-mark {
+  /* Il raggio passa dal token, non scritto a mano: su un terminale l'evidenziatore
+     diventa quadrato insieme al resto, e su un aspetto minimale quasi. Un numero
+     fisso qui sarebbe l'unica cosa della barra che non obbedisce all'aspetto — e il
+     test sui raggi lo segnala. */
+  border-radius: var(--r-field, 2px);
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.search-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-9);
+  font-variant-numeric: tabular-nums;
+}
+.search-foot-hint { display: inline-flex; align-items: center; gap: 4px; }
+
+/*
+ * La finestra della compattazione: due colonne, il contesto di prima e il riassunto
+ * di dopo, con la freccia in mezzo.
+ *
+ * Le due colonne hanno la **stessa altezza** e scorrono separate, non una sotto
+ * l'altra: il confronto e' il punto, e un confronto impilato obbligherebbe a
+ * scrollare avanti e indietro per capire quanto si e' guadagnato. La colonna
+ * sinistra e' quella che non cambia, quindi e' anche quella che non deve
+ * scorrersela via mentre il testo arriva a destra.
+ */
+.compact-refused { margin: 0; color: var(--text-dim); font-size: var(--fs-11); line-height: 1.55; }
+
+.compact-target {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 12px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: var(--surface-2);
+}
+.compact-target-label { color: var(--text-faint); font-size: var(--fs-9); text-transform: uppercase; letter-spacing: 0.06em; }
+.compact-target-name {
+  max-width: 46ch;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-11);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compact-target-tokens { margin-left: auto; color: var(--text-faint); font-size: var(--fs-9); font-variant-numeric: tabular-nums; }
+
+.compact-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+}
+.compact-pane { display: flex; min-width: 0; flex-direction: column; }
+.compact-arrow { align-self: center; flex: none; color: var(--text-faint); }
+
+.compact-pane-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.compact-pane-header h3 { margin: 0; color: var(--text); font-size: var(--fs-11); font-weight: 600; }
+.compact-pane-count { color: var(--text-faint); font-size: var(--fs-9); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/*
+ * Il testo delle due colonne e' in `pre` senza a capo, come l'anteprima di un file:
+ * e' una trascrizione di messaggi, e riflowarla nasconderebbe esattamente quello che
+ * si sta guardando — dove iniziava ogni turno. Scrolla in verticale, e in orizzontale
+ * solo se una riga e' davvero piu' larga della colonna.
+ */
+.compact-text {
+  height: 260px;
+  margin: 0;
+  padding: 9px 10px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-field, 9px);
+  background: var(--bg);
+  color: var(--text-dim);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-9);
+  line-height: 1.5;
+  white-space: pre;
+}
+.compact-text.is-after { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--text); }
+
+.compact-working { display: inline-flex; align-items: center; gap: 6px; color: var(--text-faint); }
+.compact-spin { animation: compact-spin 900ms linear infinite; }
+@keyframes compact-spin { to { transform: rotate(360deg); } }
+
+.compact-placeholder {
+  display: flex;
+  height: 260px;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-field, 9px);
+  color: var(--text-faint);
+  text-align: center;
+}
+.compact-placeholder p { max-width: 34ch; margin: 0; font-size: var(--fs-10); line-height: 1.5; }
+
+.compact-footnote { margin-right: auto; color: var(--text-faint); font-size: var(--fs-9); line-height: 1.4; }
+.compact-footer-actions { display: flex; gap: 6px; }
+
+/* Sotto una certa larghezza le due colonne non ci stanno: diventano due righe, e la
+ * freccia si gira per non indicare una destra che non c'e' piu'. */
+@media (max-width: 720px) {
+  .compact-panes { grid-template-columns: minmax(0, 1fr); }
+  .compact-arrow { justify-self: center; transform: rotate(90deg); }
+  .compact-target-tokens { margin-left: 0; }
+}
+
+/* Nella barra di stato la percentuale di contesto e' un pulsante e non un testo
+ * semplice, perche' e' l'unico numero che cambia a ogni risposta e porta a una
+ * schermata. */
+.statusbar-context {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.statusbar-context:hover { color: var(--text); text-decoration: underline; }
+.statusbar-context.is-high { color: var(--warn); }

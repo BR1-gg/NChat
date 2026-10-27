@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:"
+    />
+    <meta name="description" content="A local-first node-based graph for exploring prompts and LLM responses." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Installable as its own window. The manifest also works from the Vite
+         dev server, because http://127.0.0.1 counts as a secure origin. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0d13" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>NCHAT — Visual prompt graph</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

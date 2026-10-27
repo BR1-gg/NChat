@@ -1,0 +1,130 @@
+/*
+ * Aspetto "Claude" — carta calda, titoli in serif, aria abbondante.
+ *
+ * La differenza rispetto agli altri non e' un colore: e' la **densita'**. Gli altri
+ * aspetti sono fatti per un pannello, questo e' fatto per una pagina. Il testo
+ * corrente e' piu' grande, le righe piu' distanti, e i bordi sono cosi' tenui che
+ * si vedono appena — la separazione la fa lo spazio, non la linea.
+ *
+ * Il serif e' il segnale. Non su tutto: solo sui titoli, sui titoli dei nodi e sui
+ * numeri grandi. Un'interfaccia tutta in serif a 11px e' illeggibile, e il
+ * comportamento opposto — un serif solo dove si legge un titolo — e' quello che
+ * distingue questa cosa da un esercizio di stile.
+ *
+ * Solo token e forma, come tutti gli altri: niente `z-index`, niente
+ * `pointer-events`, nessuna dimensione. Vedi `types/settings.ts`.
+ */
+
+:root[data-appearance='claude'] {
+  /* Tre numeri, e si fermano li'. Ogni raggio del progetto e' gia' scritto come
+     `var(--r-..., <il suo valore>)`, quindi definendo i tre nomi tutta l'interfaccia
+     segue — senza elencare i pannelli, cosa che si era gia' dimenticata una volta. */
+  --r-panel: 10px;
+  --r-field: 6px;
+  --r-pill: 6px;
+  /* Il carattere con cui si legge un titolo. `Georgia` perche' e' su ogni sistema
+     e ha gli zeri con lo zero — un 1 e un 0 in un titolo di menu si confondono. */
+  --look-serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+}
+
+/* --- Scuro: marrone scuro, non grigio. Il grigio e' freddo e la carta no. --- */
+:root[data-appearance='claude'][data-theme='dark'] {
+  --bg: #1b1917;
+  --surface: #262421;
+  --surface-2: #2f2c28;
+  --surface-3: #3a3631;
+  --border: #3d3934;
+  --border-strong: #565049;
+  --text: #f0ece6;
+  --text-dim: #b8b0a6;
+  --text-faint: #8b8279;
+  --accent: #d97757;
+  --accent-strong: #e5906f;
+  --accent-soft: rgb(217 119 87 / 16%);
+  --accent-2: #b0a0c0;
+  --ok: #7fa66a;
+  --warn: #d9a441;
+  --err: #d15b5b;
+  --stream: #c98a6a;
+  --edge-run: #5d574f;
+  --edge-context: #d97757;
+  --edge-system: #d9a441;
+  --shadow: 0 8px 26px rgb(0 0 0 / 26%);
+  --shadow-soft: 0 2px 10px rgb(0 0 0 / 18%);
+  --overlay: rgb(20 17 14 / 66%);
+  --canvas-dot: rgb(240 236 230 / 6%);
+}
+
+/* --- Chiaro: la carta. Non bianco puro: il bianco puro su uno schermo acceso
+       stanca, e la differenza si sente in un'interfaccia che si usa un'ora. --- */
+:root[data-appearance='claude'][data-theme='light'] {
+  --bg: #f5f3ee;
+  --surface: #fbfaf7;
+  --surface-2: #f0ede6;
+  --surface-3: #e6e2d9;
+  --border: #e2ddd2;
+  --border-strong: #c4bdae;
+  --text: #241f1a;
+  --text-dim: #5d564c;
+  --text-faint: #8a8276;
+  --accent: #c1552d;
+  --accent-strong: #9c4322;
+  --accent-soft: rgb(193 85 45 / 10%);
+  --accent-2: #6a5a86;
+  --ok: #3f6b32;
+  --warn: #8a5a12;
+  --err: #a8342f;
+  --stream: #a8562f;
+  --edge-run: #a49c90;
+  --edge-context: #c1552d;
+  --edge-system: #8a5a12;
+  --shadow: 0 8px 26px rgb(80 66 48 / 12%);
+  --shadow-soft: 0 2px 10px rgb(80 66 48 / 8%);
+  --overlay: rgb(48 40 30 / 40%);
+  --canvas-dot: rgb(60 50 36 / 10%);
+}
+
+/*
+ * Il testo piu' grande e le righe piu' distanti: qui sta la densita' minore.
+ *
+ * `--fs-11` e il corpo piu' usato dell'app, quindi alzarlo di un gradino sposta
+ * l'interfaccia intera di una misura. Non e' arbitrario: a 11px con interlinea
+ * 1.45 su una riga lunga la lettura e' faticosa, e questo aspetto esiste per chi
+ * legge piu' che non clicca.
+ */
+:root[data-appearance='claude'] {
+  --fs-9: calc(10px * var(--ui-scale));
+  --fs-10: calc(11px * var(--ui-scale));
+  --fs-11: calc(12px * var(--ui-scale));
+  --fs-12: calc(13px * var(--ui-scale));
+  --fs-13: calc(14px * var(--ui-scale));
+  --chrome-top: calc(56px * var(--ui-scale));
+}
+
+/* I titoli in serif: qui e solo qui. */
+:root[data-appearance='claude'] .dialog-header h2,
+:root[data-appearance='claude'] .settings-section h3,
+:root[data-appearance='claude'] .node-title,
+:root[data-appearance='claude'] .home-empty h1,
+:root[data-appearance='claude'] .usage-total-value {
+  font-family: var(--look-serif);
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Il pannello del nodo e la barra in alto: la separazione la fa lo spazio, non la
+ * linea, quindi il bordo resta ma l'ombra e' leggera.
+ */
+:root[data-appearance='claude'] .node-shell {
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-appearance='claude'] .node-shell.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+:root[data-appearance='claude'] .topbar {
+  border-bottom: 1px solid var(--border);
+}

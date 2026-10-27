@@ -1,0 +1,131 @@
+/*
+ * Aspetto "Google" — Material 3.
+ *
+ * La firma di Material non e' il blu: e' che **l'ombra e' quasi assente** e la
+ * separazione la fa il bordo piatto. Un pannello Material non sembra appoggiato
+ * su un altro, sembra delineato. Per questo qui le ombre scendono quasi a zero e i
+ * bordi salgono: e' l'inverso di quello che fa l'aspetto di default, dove il
+ * pannello e' un oggetto staccato dal piano e l'ombra e' la prova.
+ *
+ * Il resto e' riconoscibile a pezzi: superfici bianche sul grigio, angoli molto
+ * arrotondati, bottoni a pillola, campi di testo con bordo accentato quando hanno
+ * il fuoco, e la barra in alta che e' piu' spessa e piu' bianca del resto.
+ *
+ * Solo token e forma. Nessun `z-index`, nessun `pointer-events`, nessuna
+ * dimensione: un aspetto che toccasse la pila degli strati produrrebbe un bottone
+ * che sembra cliccabile e non lo e', e l'utente non ha modo di capire la
+ * differenza. Vedi `types/settings.ts` per la regola.
+ */
+
+:root[data-appearance='google'] {
+  /*
+   * La forma in tre numeri, e si fermano qui.
+   *
+   * Non serve elencare i pannelli: ogni `border-radius` del progetto e' gia' scritto
+   * come `var(--r-panel, <il suo valore>)`, quindi basta definire i tre nomi e tutta
+   * l'interfaccia li segue. L'elenco dei selettori, che c'era prima, si era gia'
+   * dimenticato `.home-empty` — la pagina iniziale restava con gli angoli
+   * dell'aspetto di default accanto a sette angoli Material, e la colpa non era del
+   * foglio ma dell'elenco.
+   *
+   * La pillola e' il pezzo che si riconosce a prima vista, quindi va su `--r-pill`;
+   * i controlli di testo restano dolcemente arrotondati, che e' come sono in Material.
+   */
+  --r-panel: 12px;
+  --r-field: 6px;
+  --r-pill: 999px;
+}
+
+/* --- Scuro: non un nero, un grigio con un fondo appena piu' scuro. Material in
+       dark mode usa superfici **chiare sul fondo**, il contrario del default. --- */
+:root[data-appearance='google'][data-theme='dark'] {
+  --bg: #131417;
+  --surface: #1e1f24;
+  --surface-2: #282a31;
+  --surface-3: #33363f;
+  --border: #3a3d47;
+  --border-strong: #55596a;
+  --text: #e4e2e3;
+  --text-dim: #a8a6ad;
+  --text-faint: #7c7a83;
+  --accent: #a8c7fa;
+  --accent-strong: #c4dbfb;
+  --accent-soft: rgb(168 199 250 / 18%);
+  --accent-2: #d7bdfb;
+  --ok: #81c995;
+  --warn: #fdd663;
+  --err: #f2b8b5;
+  --stream: #8ab4f8;
+  --edge-run: #5f6368;
+  --edge-context: #a8c7fa;
+  --edge-system: #fdd663;
+  /* Quasi niente: e' l'ombra, non il bordo, a separare i pannelli. */
+  --shadow: 0 2px 8px rgb(0 0 0 / 28%);
+  --shadow-soft: 0 1px 3px rgb(0 0 0 / 24%);
+  --overlay: rgb(0 0 0 / 62%);
+  --canvas-dot: rgb(255 255 255 / 8%);
+}
+
+/* --- Chiaro: bianco su grigio, il Material di sempre. --- */
+:root[data-appearance='google'][data-theme='light'] {
+  --bg: #f1f3f6;
+  --surface: #ffffff;
+  --surface-2: #f4f6f9;
+  --surface-3: #e8eaef;
+  --border: #dadde3;
+  --border-strong: #b9bec7;
+  --text: #1b1c1e;
+  --text-dim: #5c5f66;
+  --text-faint: #80848c;
+  --accent: #0b57d0;
+  --accent-strong: #0842a0;
+  --accent-soft: rgb(11 87 208 / 10%);
+  --accent-2: #7a3ff2;
+  --ok: #146c2e;
+  --warn: #8a5000;
+  --err: #b3261e;
+  --stream: #0a5ca8;
+  --edge-run: #8a8f98;
+  --edge-context: #0b57d0;
+  --edge-system: #8a5000;
+  --shadow: 0 2px 8px rgb(60 64 67 / 22%);
+  --shadow-soft: 0 1px 3px rgb(60 64 67 / 18%);
+  --overlay: rgb(32 33 36 / 46%);
+  --canvas-dot: rgb(60 64 67 / 14%);
+}
+
+/*
+ * La barra in alto e' il pezzo che si riconosce a prima vista: piu' spessa, piu'
+ * bianca della tela, e con una linea sotto sottile. Non le cambio l'altezza perche'
+ * `--chrome-top` la governa insieme al resto della UI e raddoppiarla qui
+ * desincronizzerebbe il cursore della dimensione — il bottone di dimensione
+ * smetterebbe di corrispondere a quello che si vede.
+ */
+/*
+ * I pannelli: senza ombra pesante, perche' in Material la separazione la fa il
+ * bordo.
+ *
+ * `.node-shell` ha un `color-mix` sul tema scuro, scritto per l'aspetto di default
+ * perche' li' il nodo e' semitrasparente. Qui diventa opaco: su un pannello senza
+ * ombra la trasparenza fa sembrare il nodo sporco invece che sovrapposto.
+ */
+:root[data-appearance='google'] .node-shell {
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+:root[data-appearance='google'] .node-shell.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* Il campo di testo con il fuoco prende il bordo accentato: e' il segnale che in
+   Material dice "qui si scrive", e senza si perde in una riga grigia. */
+:root[data-appearance='google'] .node-textarea:focus-visible,
+:root[data-appearance='google'] .response-body:focus-visible,
+:root[data-appearance='google'] .dialog input:focus-visible,
+:root[data-appearance='google'] .dialog textarea:focus-visible,
+:root[data-appearance='google'] .dialog select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}

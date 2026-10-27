@@ -1,0 +1,24 @@
+# Normalize text files in the repository, so that a clone on Windows and a clone
+# on Linux contain the same bytes. Working copies keep the platform convention,
+# except for the Windows scripts, which must stay CRLF on every machine.
+* text=auto
+
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.svg text eol=lf
+
+*.png binary
+*.ico binary
+*.jpg binary
+*.webp binary

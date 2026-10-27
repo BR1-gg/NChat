@@ -1,0 +1,139 @@
+/*
+ * Aspetto "ASCII" — un terminale.
+ *
+ * La ragione per cui questo aspetto esiste non e' la nostalgia: e' che e' **l'unico
+ * che funziona su qualunque schermo**. Su un monitor LCD economico, su una
+ * televisione, su un proiettore, o su uno schermo rotto a meta', la trasparenza
+ * non si vede, le sfumature si perdono e i colori si lavano via. Un terminale no:
+ * un colore fosforescente e due caratteri di bordo si vedono dappertutto, e su
+ * qualunque macchina, perche' sono le uniche cose che un display e' obbligato a
+ * far bene.
+ *
+ * Per questo qui non e' "il look con i caratteri ASCII": e' quello che non ha
+ * bisogno di nessuna delle cose che gli altri usano. Niente `backdrop-filter`,
+ * niente `box-shadow`, niente `border-radius`, niente `color-mix`. Solo colori
+ * piatti, bordi di un pixel, e il monospace ovunque.
+ *
+ * Il monospace non e' decorativo e' **l'asse**: e' cio' che tiene in fila le
+ * colonne, e senza di esso una tabella di numeri con i caratteri di spaziatura
+ * proporzionali e' una tabella storta. Per questo va su `*`, non sui titoli.
+ *
+ * Solo token e forma, come gli altri. Vedi `types/settings.ts`.
+ */
+
+:root[data-appearance='ascii'] {
+  /* Il monospace del sistema, con l'ordine di preferenza che conta: una macchina
+     senza il primo deve prendere il secondo senza aprire una finestra. */
+  --look-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'DejaVu Sans Mono', 'Courier New', monospace;
+
+  /*
+   * Tutti e tre i raggi a zero, e basta.
+   *
+   * Il default arriva fino a 16px, e su un bordo di un pixel una curva da 16px
+   * mangia quasi tutto il bordo: si vede un bordo **interrotto**, che e' peggio di
+   * nessun bordo perche' sembra un difetto invece di una scelta.
+   *
+   * Tre numeri bastano perche' ogni raggio del progetto e' gia' scritto come
+   * `var(--r-..., <il suo valore>)`: questo e' il punto in cui la lista dei selettori
+   * smette di servire, e con lei la lista da ricordare di aggiornare.
+   */
+  --r-panel: 0px;
+  --r-field: 0px;
+  --r-pill: 0px;
+}
+
+/*
+ * Il verde fosforescente su nero, in **entrambi** i temi.
+ *
+ * E' l'unico aspetto che non cambia colore tra chiaro e scuro, ed e' una scelta
+ * e non una dimenticanza: un terminale in tema chiaro e' un foglio di testo con
+ * lo sfondo bianco, che non e' un terminale. Chi lo sceglie chiede un terminale,
+ * quindi lo riceve anche in chiaro.
+ */
+:root[data-appearance='ascii'] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface-2: #111111;
+  --surface-3: #1a1a1a;
+  --border: #2b2b2b;
+  --border-strong: #4a4a4a;
+  --text: #d8ffd8;
+  --text-dim: #8fbf8f;
+  --text-faint: #5c8a5c;
+  --accent: #33ff66;
+  --accent-strong: #7cff9e;
+  --accent-soft: rgb(51 255 102 / 16%);
+  --accent-2: #33ffff;
+  --ok: #33ff66;
+  --warn: #ffcc33;
+  --err: #ff5555;
+  --stream: #33ffff;
+  --edge-run: #3a3a3a;
+  --edge-context: #33ff66;
+  --edge-system: #ffcc33;
+  --shadow: none;
+  --shadow-soft: none;
+  --overlay: rgb(0 0 0 / 84%);
+  --canvas-dot: #1c1c1c;
+
+  /* Il testo non cresce: su un terminale la griglia e' fissa e un carattere che
+     cambia larghezza sposta tutto quello che segue. */
+  --fs-9: calc(11px * var(--ui-scale));
+  --fs-10: calc(12px * var(--ui-scale));
+  --fs-11: calc(13px * var(--ui-scale));
+  --fs-12: calc(13px * var(--ui-scale));
+  --fs-13: calc(14px * var(--ui-scale));
+}
+
+/*
+ * Il monospace ovunque, con `*` e non con una lista di selettori.
+ *
+ * Un elenco di classi si lascia indietro qualcosa — un componente nuovo, un menu,
+ * una finestra — e li' la finestra e' in un sans-serif dentro un terminale, che
+ * si vede subito e male. `*` copre anche quello che non e' ancora scritto.
+ */
+:root[data-appearance='ascii'] *,
+:root[data-appearance='ascii'] *::before,
+:root[data-appearance='ascii'] *::after {
+  font-family: var(--look-mono) !important;
+  font-variant-ligatures: none;
+  /* Le cifre tabellari tengono le colonne dei numeri in fila: senza, `1` occupa
+     meno spazio di `8` e una tabella di conteggi si staglia. */
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Ombre **assenti**, non deboli. `--shadow` e `--shadow-soft` sono gia' `none` nei
+ * token di questo aspetto, e i pannelli non hanno bisogno di altro: un'ombra su una
+ * scatola con bordo rigido si vede come una macchia, ed e' una forma che questo
+ * schermo non dovrebbe avere.
+ */
+:root[data-appearance='ascii'] .node-shell,
+:root[data-appearance='ascii'] .react-flow__controls,
+:root[data-appearance='ascii'] .react-flow__minimap,
+:root[data-appearance='ascii'] .group-frame {
+  box-shadow: none;
+}
+
+/* La tela: sfondo nero. I puntini sono un'immagine di sfondo di React Flow e non
+   passano dai token, quindi il loro colore si imposta li'. */
+:root[data-appearance='ascii'] .react-flow,
+:root[data-appearance='ascii'] .react-flow__background {
+  background: var(--bg);
+}
+
+/* La maniglia: quadrata, con un bordo dello sfondo per staccarla dal pannello. */
+:root[data-appearance='ascii'] .react-flow__handle {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px var(--bg);
+}
+
+/* La selezione: un bordo pieno, non un alone. Su uno sfondo nero l'alone colorato
+   si perde, e il bordo acceso e' l'unica cosa che si vede. */
+:root[data-appearance='ascii'] .node-shell.is-selected {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: none;
+}

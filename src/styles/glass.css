@@ -1,0 +1,177 @@
+/*
+ * Aspetto "Liquid Glass".
+ *
+ * Il vetro e una cosa che si vede solo se ha qualcosa dietro: senza uno sfondo
+ * colorato, `backdrop-filter` produce un grigio piatto e il risultato sembra un
+ * bug invece di un materiale. Per questo la prima regola di questo foglio non e
+ * sulle superfici, ma sullo sfondo: due macchie di colore ferme dietro tutto,
+ * che poi il blur sfoca e distorce.
+ *
+ * Le superfici diventano translucide, si arrotondano di piu, e prendono un bordo
+ * luminoso solo in alto, che e la firma del vetro: la luce arriva da sopra.
+ *
+ * Vive su `:root[data-appearance='glass']` e non su una classe, cosi come il
+ * tema, e non puo accumularsi con `[data-theme]`: le due scelte sono indipendenti
+ * e ognuna vale in chiaro e in scuro.
+ */
+
+:root[data-appearance='glass'] {
+  --glass-blur: 22px;
+  --glass-sat: 175%;
+  --glass-radius: 20px;
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 22%);
+  --glass-edge-dark: inset 0 1px 0 rgb(255 255 255 / 12%);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / 18%), 0 2px 6px rgb(0 0 0 / 10%);
+}
+
+/* Sfondo scuro: blu notte, con una macchia calda per non essere piatto. */
+:root[data-appearance='glass'][data-theme='dark'] {
+  --bg: #0a0d16;
+  --surface: rgb(28 34 52 / 62%);
+  --surface-2: rgb(40 48 70 / 58%);
+  --surface-3: rgb(54 64 92 / 62%);
+  --border: rgb(255 255 255 / 11%);
+  --border-strong: rgb(255 255 255 / 22%);
+  --shadow-soft: var(--glass-shadow);
+  --glass-edge-active: var(--glass-edge-dark);
+  /* Dietro ai puntini c'e una lavatura chiara, non un piano scuro: un puntino
+     bianco sparisce. */
+  --canvas-dot: rgb(8 12 24 / 20%);
+}
+
+/* Sfondo chiaro: quasi bianco, con una macchia fredda. */
+:root[data-appearance='glass'][data-theme='light'] {
+  --bg: #eef1f8;
+  --surface: rgb(255 255 255 / 66%);
+  --surface-2: rgb(255 255 255 / 52%);
+  --surface-3: rgb(255 255 255 / 78%);
+  --border: rgb(255 255 255 / 74%);
+  --border-strong: rgb(15 23 42 / 16%);
+  --shadow-soft: var(--glass-shadow);
+  --glass-edge-active: var(--glass-edge);
+  --canvas-dot: rgb(30 41 70 / 16%);
+}
+
+/*
+ * Le macchie. Sono dietro tutto, fisse, e non reagiscono al puntatore: se
+ * seguissero il mouse il blur cambierebbe a ogni movimento e la tela sembrerebbe
+ * instabile, il contrario di calmata.
+ */
+:root[data-appearance='glass'] .app-shell {
+  position: relative;
+  background: var(--bg);
+}
+
+:root[data-appearance='glass'] .app-shell::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  /*
+   * Grandi e morbide, non macchie piccole. Il canvas e la superficie piu grande
+   * dell'app: con dei cerchi stretti il centro resta del nero piatto e il vetto
+   * si trova a non avere niente dietro, che e la cosa che fa sembrare rotto un
+   * effetto come questo. Queste coprono tutta la larghezza.
+   */
+  background:
+    radial-gradient(120vw 96vh at 18% 4%, rgb(126 156 255 / 50%), transparent 68%),
+    radial-gradient(110vw 88vh at 88% 84%, rgb(165 116 255 / 44%), transparent 70%),
+    radial-gradient(90vw 70vh at 72% 6%, rgb(40 215 232 / 24%), transparent 70%),
+    radial-gradient(80vw 66vh at 30% 96%, rgb(255 138 196 / 22%), transparent 72%),
+    radial-gradient(140vw 110vh at 50% 50%, rgb(88 108 190 / 22%), transparent 74%);
+}
+
+:root[data-appearance='glass'][data-theme='light'] .app-shell::before {
+  background:
+    radial-gradient(120vw 96vh at 18% 4%, rgb(126 156 255 / 44%), transparent 68%),
+    radial-gradient(110vw 88vh at 88% 84%, rgb(165 116 255 / 38%), transparent 70%),
+    radial-gradient(90vw 70vh at 72% 6%, rgb(40 215 232 / 20%), transparent 70%),
+    radial-gradient(80vw 66vh at 30% 96%, rgb(255 138 196 / 18%), transparent 72%),
+    radial-gradient(140vw 110vh at 50% 50%, rgb(88 108 190 / 16%), transparent 74%);
+}
+
+/*
+ * La tela smette di dipingere uno sfondo.
+ *
+ * Due cose lo fanno, ed entrambe vanno scoperte: `.react-flow` prende il suo
+ * `--bg`, e il `<svg class="react-flow__background">` di React Flow ha un
+ * `background-color` proprio (grigio `#141414` nella variante scura) che sta
+ * dietro ai puntini ma davanti a tutto il resto. Se anche solo una delle due
+ * resta, le macchie finiscono sotto a una lastra piatta e il vetto si ritrova
+ * a essere vetro sopra niente, che e grigio.
+ *
+ * I puntini restano: vengono dal `<pattern>` SVG, cioe da un attributo `fill`, e
+ * non da questo colore di sfondo.
+ */
+:root[data-appearance='glass'] .react-flow,
+:root[data-appearance='glass'] .react-flow__background {
+  background: transparent;
+}
+
+/*
+ * Il contenuto sta sopra le macchie, altrimenti il vetro coprirebbe il nulla.
+ *
+ * Solo il posizionamento, e **nessun `z-index`**: `z-index: 1` su `.app-main` crea un
+ * contesto di impilamento che chiude dentro di se' tutto cio che c'e' dentro, `z-index`
+ * elevati compresi. Il menu "Altro" della barra in alto ha `z-index: 120` e dovrebbe
+ * stare sopra la tela, ma intrappolato in un contesto a `1` finisce sotto
+ * `.react-flow__pane`, che e` a `1` ma vive in un altro contesto: i pulsanti diventano
+ * invisibili al puntatore, il menu sembra non cliccare e in realta` non riceve nulla.
+ * Solo in modalita` vetro, perche` in quella modalita` questa riga esiste.
+ *
+ * `position: relative` da solo mette il contenuto sopra le macchie senza creare quel
+ * contesto, quindi la correzione e' togliere la riga, non alzare altro. Alzare il
+ * menu a 200 non aiuterebbe: resterebbe comunque intrappolato in un contesto che vince
+ * la tela.
+ */
+:root[data-appearance='glass'] .app-main,
+:root[data-appearance='glass'] .topbar,
+:root[data-appearance='glass'] .statusbar {
+  position: relative;
+}
+
+/* Superfici di vetro. */
+:root[data-appearance='glass'] .node-shell,
+:root[data-appearance='glass'] .topbar,
+:root[data-appearance='glass'] .canvas-toolbar,
+:root[data-appearance='glass'] .node-palette,
+:root[data-appearance='glass'] .context-menu,
+:root[data-appearance='glass'] .inspector,
+:root[data-appearance='glass'] .dialog,
+:root[data-appearance='glass'] .statusbar,
+:root[data-appearance='glass'] .queue-panel,
+:root[data-appearance='glass'] .tray-tip,
+/* I due pannelli di React Flow. Sono gia translucidi per costruzione, ma hanno
+   un raggio tutto loro e senza questo resterebbero due quadratini piu piccoli
+   delle finestre accanto. */
+:root[data-appearance='glass'] .react-flow__controls,
+:root[data-appearance='glass'] .react-flow__minimap {
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--glass-shadow), var(--glass-edge-active);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+
+/* Il canvas e la tela, non un pannello: non diventa vetro, si vede il fondo. */
+:root[data-appearance='glass'] .node-shell {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+:root[data-appearance='glass'] .node-shell.is-selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    var(--glass-shadow),
+    var(--glass-edge-active);
+}
+
+:root[data-appearance='glass'] .react-flow__handle {
+  /* Il bordo bianco stacca la maniglia dal vetro, altrimenti si perde. */
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+:root[data-appearance='glass'] .group-frame {
+  border-radius: var(--glass-radius);
+}

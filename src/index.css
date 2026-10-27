@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/theme.css";
+@import "./styles/v2.css";
+/* Per ultimi: gli aspetti alternativi devono poter sovrascrivere i bordi e le
+   sfumature di v2.css senza doverli ricostruire li. Ognuno e' su
+   `:root[data-appearance='...']`, quindi non si accumulano mai fra loro: due
+   aspetti non possono essere attivi insieme, e l'ordine qui dentro non conta. */
+@import "./styles/glass.css";
+@import "./styles/look-google.css";
+@import "./styles/look-claude.css";
+@import "./styles/look-ascii.css";
+@import "./styles/look-minimal.css";

@@ -1,0 +1,148 @@
+/*
+ * La dimensione dell'interfaccia.
+ *
+ * `zoom` sul root e' stato provato e **rotto**: rende un elemento misurabile in due
+ * modi che non coincidono piu'. Misurato su questo progetto, con `zoom: 1.4` un
+ * contenitore da 1000px si legge 1000 con `getBoundingClientRect()` e 714 con
+ * `offsetWidth` — e React Flow usa entrambi: uno per lo zoom del viewport, uno per la
+ * posizione dei nodi. Le maniglie di connessione finiscono nel posto sbagliato, e
+ * ridimensionare un nodo con la maniglia lo sposta invece di ridimensionarlo.
+ *
+ * Un fattore sui numeri invece non cambia la geometria: la tela continua a misurare la
+ * stessa cosa e i nodi restano dove sono. Costa una moltiplicazione in piu' per valore,
+ * e la si paga una volta sola.
+ *
+ * Non si puo' neanche affidarsi a `font-size` sul root: in questo progetto **ogni**
+ * `font-size` e' in pixel — 121 dichiarazioni contro 5 in rem/em — e un `px` non
+ * eredita nulla. Quindi il fattore viene applicato ai valori, dove c'e' gia' un numero.
+ *
+ * L'unica cosa che non scala e' la dimensione dei nodi, e va bene: i limiti scritti nel
+ * codice restano quelli, mentre il testo dentro cresce con la UI — che su un monitor
+ * piccolo serve, e su uno grande rende il grafo leggibile da lontano.
+ */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ui-scale: 1;
+
+  /*
+   * I dieci corpi di testo del progetto, come fattori.
+   *
+   * Sono dieci valori distinti su 121 dichiarazioni, e sono gli unici che servono per
+   * la leggibilita': un'interfaccia piu' piccola non si ottiene stringendo i bordi, si
+   * ottiene stringendo il testo che si legge. Nominarli qui e' anche il modo per
+   * ritrovarli: con `font-size: var(--fs-9)` sparso in quattro fogli di stile, un valore che
+   * andrebbe cambiato per tutti insieme non si trova senza cercarlo in ogni riga.
+   *
+   * `--fs-*` e' la grandezza; `calc` la moltiplica per il fattore impostato. A
+   * fattore 1 il risultato e' il valore di prima, quindi l'aspetto di default non
+   * cambia di una virgola.
+   */
+  --fs-8: calc(8px * var(--ui-scale));
+  --fs-9: calc(9px * var(--ui-scale));
+  --fs-10: calc(10px * var(--ui-scale));
+  --fs-11: calc(11px * var(--ui-scale));
+  --fs-12: calc(12px * var(--ui-scale));
+  --fs-13: calc(13px * var(--ui-scale));
+  --fs-14: calc(14px * var(--ui-scale));
+  --fs-18: calc(18px * var(--ui-scale));
+  --fs-19: calc(19px * var(--ui-scale));
+  --fs-28: calc(28px * var(--ui-scale));
+
+  /*
+   * Le misure dell'involucro: le altezze fisse della barra in alto e di quella in
+   * basso, e la dimensione minima dei pulsanti.
+   *
+   * Servono perche' il testo scala e loro no: senza, a 1.4 un bottone da 30px con
+   * dentro un testo da 14px taglia le lettere, e il difetto si vede come «l'interfaccia
+   * e rotta» invece che come «ho alzato la dimensione». Con queste tre, testo e
+   * contenitore crescono insieme e il risultato e' una UI piu' grande, non una piu'
+   * affollata.
+   *
+   * Non si scalano le dimensioni dei nodi: i limiti di ingrandimento e rimpicciolimento
+   * stanno nel codice e valgono per la tela, e cambiarli qui significherebbe che un
+   * nodo misurato in pixel cambiasse dimensione al reload, spostando tutto il grafo.
+   */
+  --chrome-top: calc(52px * var(--ui-scale));
+  --chrome-bottom: calc(24px * var(--ui-scale));
+  --control-min: calc(30px * var(--ui-scale));
+
+  /*
+   * I raggi degli angoli: `--r-panel`, `--r-field` e `--r-pill`.
+   *
+   * **Non sono definiti qui**, e questa e' la parte importante. Ogni dichiarazione
+   * scrive il proprio valore come riserva: `border-radius: var(--r-panel, 14px)`. Fin
+   * che nessuno definisce i tre nomi, vale la riserva — cioe' esattamente il numero
+   * che c'era prima, e l'aspetto di default non cambia di una virgola. A definire i
+   * tre nomi sono solo gli **aspetti** alternativi, e allora ogni dichiarazione
+   * obbedisce insieme.
+   *
+   * Il motivo per cui esistono e' che un aspetto deve poter cambiare la forma
+   * **tutta** con tre numeri. L'alternativa era l'elenco dei selettori dentro ogni
+   * foglio di aspetto, e quell'elenco e' gia' divergito una volta: il foglio Google
+   * non elencava `.home-empty`, quindi la pagina iniziale restava con gli angoli
+   * dell'aspetto di default accanto a sette angoli Material. Un elenco di classi che
+   * qualcuno deve ricordare di aggiornare e' un elenco che non viene aggiornato.
+   *
+   * Tre gruppi e non uno perche' gli angoli non sono tutti uguali e non devono
+   * diventarlo: un pannello e un campo hanno bisogno di raggi diversi, e un aspetto
+   * come il terminale li vuole tutti a zero mentre uno come Material li vuole tondi
+   * ma non uguali. Tre gruppi bastano per dirlo; uno solo renderebbe obbligatorio
+   * scegliere fra «tutto tondo» e «tutto squadrato».
+   */
+
+  --bg: #0b0d12;
+  --surface: #12151d;
+  --surface-2: #181c26;
+  --surface-3: #202634;
+  --border: #252a37;
+  --border-strong: #394154;
+  --text: #e6e9f0;
+  --text-dim: #a0a8b8;
+  --text-faint: #727b8d;
+  --accent: #7692ff;
+  --accent-strong: #8da5ff;
+  --accent-soft: rgb(118 146 255 / 14%);
+  --accent-2: #9b6dff;
+  --ok: #35c86f;
+  --warn: #f4b740;
+  --err: #f05d68;
+  --stream: #28d7e8;
+  --edge-run: #556070;
+  --edge-context: #7692ff;
+  --edge-system: #f4b740;
+  --shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  --shadow-soft: 0 8px 24px rgb(0 0 0 / 22%);
+  --overlay: rgb(3 5 10 / 72%);
+  /* Il puntini della tela. Varia con l'aspetto: su un piano scuro un puntino
+     chiaro, su un vetro illuminato un puntino scuro. */
+  --canvas-dot: rgb(255 255 255 / 7%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f0f2f8;
+  --surface-3: #e5e8f1;
+  --border: #dfe3ed;
+  --border-strong: #c5cbda;
+  --text: #111827;
+  --text-dim: #5e687a;
+  --text-faint: #7a8496;
+  --accent: #526fe8;
+  --accent-strong: #3f5fd7;
+  --accent-soft: rgb(82 111 232 / 11%);
+  --accent-2: #7c4de3;
+  --ok: #158743;
+  --warn: #a86600;
+  --err: #c53242;
+  --stream: #087f91;
+  --edge-run: #7b8494;
+  --edge-context: #526fe8;
+  --edge-system: #b36c00;
+  --shadow: 0 18px 50px rgb(31 41 55 / 15%);
+  --shadow-soft: 0 8px 24px rgb(31 41 55 / 10%);
+  --overlay: rgb(20 25 35 / 46%);
+  --canvas-dot: rgb(15 23 42 / 12%);
+}
